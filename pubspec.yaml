@@ -1,0 +1,88 @@
+name: restaurant_pos
+description: Offline-first POS billing for a small restaurant. Android only.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  # Dart 3.13.7 ships with Flutter 3.47.9, the stable at the time of writing.
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State and dependency injection. Think of providers as the wiring you would
+  # otherwise do by hand in a Go main(): they build each piece once and hand it
+  # to whatever asks, and tests can swap any of them for a fake.
+  flutter_riverpod: ^3.4.3
+
+  # SQLite, typed. Drift generates Dart from the table definitions much as sqlc
+  # generates Go from SQL.
+  #
+  # Note there is NO sqlite3_flutter_libs here: its last release is 0.6.0+eol
+  # and its author says to use sqlite3 3.x instead, which loads SQLite through
+  # Dart build hooks. See PLAN.md section 2.
+  drift: ^2.35.3
+  sqlite3: ^3.8.0
+
+  # Printing. esc_pos_utils_plus is wrapped in printing/esc_pos.dart rather than
+  # used directly, because it has not been published since September 2024.
+  esc_pos_utils_plus: ^2.0.4
+  print_bluetooth_thermal: ^1.2.5
+
+  # Receipt rendering: we draw our own 1-bit bitmap rather than trusting printer
+  # fonts, which cannot render Telugu or the rupee sign.
+  image: ^4.12.0
+
+  permission_handler: ^13.0.2
+  path_provider: ^2.1.6
+  path: ^1.9.0
+
+  # Nightly backup, and picking the folder it goes to.
+  workmanager: ^0.10.10
+  file_picker: ^13.3.2
+
+  # Export for the accountant.
+  csv: ^8.0.0
+  excel: ^4.0.6
+
+  # PIN hashing (PBKDF2-HMAC-SHA256) and UUIDv7 ids for synced records.
+  crypto: ^3.0.8
+  uuid: ^4.6.0
+
+  intl: ^0.20.3
+  collection: ^1.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.35.2
+  build_runner: ^2.4.13
+
+  # Riverpod's generator. Only used for providers; nothing else generates code.
+  riverpod_generator: ^4.0.9
+  custom_lint: ^0.7.0
+  riverpod_lint: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    # Bundled, not fetched: the app must work with no internet. Anek Telugu
+    # covers Latin and Telugu in one family, which is why the design uses it.
+    #
+    # This is the variable font, one file carrying every weight from 100 to 800.
+    # Flutter reads the weight axis, so the four weights the design uses
+    # (400/500/600/700) all come out of this single asset.
+    - family: AnekTelugu
+      fonts:
+        - asset: assets/fonts/AnekTelugu-Variable.ttf
+
+  generate: true
