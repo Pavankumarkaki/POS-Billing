@@ -164,8 +164,15 @@ lib/
 - **Drift over raw SQL**: generates typed Dart from table definitions, like `sqlc` for Go.
   You write schema and queries, it writes the boilerplate. Migrations are versioned and
   numbered, with generated schema snapshots so a migration test can verify every step.
-- **Code generation** (`build_runner`): Drift and Riverpod both generate `.g.dart` files.
-  Committed to the repo, so a fresh clone builds without running the generator.
+- **Code generation** (`build_runner`): Drift and Riverpod both generate `.g.dart`
+  files. These are **not** committed: `db.g.dart` alone is about 11,000 lines and
+  would dominate every diff. A fresh clone needs one command before it will
+  compile, which the README leads with:
+
+      dart run build_runner build --delete-conflicting-outputs
+
+  (An earlier draft of this plan said they would be committed. Changed after
+  seeing the size of the generated file.)
 - **`extension type Paise(int)`**: a compile-time-only wrapper. Zero runtime cost, but
   assigning a `double` to a `Paise` will not compile. This is the money rule enforced by
   the type system rather than by review.
