@@ -100,6 +100,22 @@ pgrep -af flutter_tools      # look for ones minutes or hours old
 kill <pid>                   # kill by PID, not by pattern
 ```
 
+### Reading the database off a device
+
+```bash
+adb exec-out run-as com.deeptaai.restaurant_pos \
+  cat /data/data/com.deeptaai.restaurant_pos/app_flutter/pos.sqlite > pos.sqlite
+```
+
+Two traps, both of which produce an **empty-looking database** and neither of
+which is a real problem:
+
+- Use `adb exec-out`, not `adb shell`. `adb shell` translates line endings and
+  silently corrupts a binary file.
+- Writes live in `pos.sqlite-wal` until SQLite checkpoints them, so copying only
+  `pos.sqlite` can show nothing. Copy the `-wal` alongside it, or read the file
+  after the app has closed cleanly.
+
 ## Testing
 
 ```bash

@@ -260,7 +260,7 @@ milestone done on anything I have not run.
 | 2 | `data/`: schema v1, DAOs, `commitSale()` transaction, audit log, outbox. | Immutability, rollback, snapshots. |
 | 3 | ~~First-run setup, PIN login, roles, lockout~~ **DONE 2026-11-03.** Verified on an Android 17 emulator: setup → login → home, including in airplane mode. | Permission checks, lockout surviving restart, no PIN in the audit log. |
 | 4 | ~~Menu management, EN/TE names, enable/disable~~ **DONE 2026-11-03.** Verified on device: category and item created through the UI. | Snapshots stay fixed after menu edits; disable never deletes. |
-| 5 | ~~Billing screen, phone one-handed and tablet two-pane, split payments~~ **DONE 2026-11-03**, pending device check. | A sale, end to end, saved: 19 widget tests drive the grid, cart, split tenders and commit. |
+| 5 | ~~Billing screen, phone one-handed and tablet two-pane, split payments~~ **DONE 2026-11-03**, verified on device: bill A/2627/000001 for ₹480 saved with its line, payment, audit and outbox rows. | A sale, end to end, saved: 19 widget tests drive the grid, cart, split tenders and commit. |
 | 6 | `printing/`: interface, bitmap renderer, fake printer, golden receipts EN + TE. | Receipts, inspectable as PNG without hardware. |
 | 7 | Bluetooth + LAN printers, queue, reconnect, failure and retry UI. | Printer failure never loses a bill. Hardware-blocked, see below. |
 | 8 | Cancel with owner PIN and reason, reprint marked DUPLICATE. | Invoice number survives cancellation. |
