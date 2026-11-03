@@ -43,6 +43,11 @@ dependencies:
   # encodes PNG directly, so the package bought nothing while conflicting with
   # excel over archive (image needs archive 4.x, excel is pinned to 3.x).
 
+  # QR matrix for the UPI code on a receipt. Pure Dart, one dependency, and
+  # we draw the cells ourselves onto the receipt canvas: qr_flutter would give
+  # a widget, and a receipt is a bitmap, not a widget tree.
+  qr: ^4.0.1
+
   permission_handler: ^13.0.2
   path_provider: ^2.1.6
   path: ^1.9.0
