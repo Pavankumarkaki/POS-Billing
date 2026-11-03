@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/domain.dart';
 import '../../providers.dart';
 import '../../theme/app_theme.dart';
+import '../billing/billing_screen.dart';
 import '../menu/menu_screen.dart';
 
 /// A place the shell can show, and who may go there.
@@ -60,10 +61,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     final body = switch (_current) {
       Destination.menu => const MenuScreen(),
-      Destination.billing => const _Placeholder(
-          title: 'Billing',
-          note: 'The item grid and the bill panel arrive in milestone 5.',
-        ),
+      Destination.billing => const BillingScreen(),
       Destination.bills => const _Placeholder(
           title: 'Bills',
           note: 'Today\'s bills, cancel and reprint arrive in milestone 8.',
