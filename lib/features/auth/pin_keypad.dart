@@ -127,6 +127,9 @@ class PinKeypad extends StatelessWidget {
     final rows = <Widget>[];
     for (var r = 0; r < 4; r++) {
       final row = Row(
+        // Without this, Expanded sets each key's WIDTH but leaves its height
+        // to the button's own minimum, so rowHeight is silently ignored.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var c = 0; c < 3; c++) ...[
             if (c > 0) SizedBox(width: spacing),

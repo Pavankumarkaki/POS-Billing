@@ -177,9 +177,30 @@ class _PhoneLayout extends StatelessWidget {
   final List<UserRow> users;
   final _LoginScreenState state;
 
+  /// Below this the keypad gets a fixed row height and the screen scrolls,
+  /// rather than squeezing rows until they overflow.
+  static const double _tallEnough = 560;
+
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tall = constraints.maxHeight >= _tallEnough;
+        final body = _body(context, tall: tall);
+        if (tall) return body;
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: body,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _body(BuildContext context, {required bool tall}) {
     return Column(
+      mainAxisSize: tall ? MainAxisSize.max : MainAxisSize.min,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -208,26 +229,35 @@ class _PhoneLayout extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(AppRadius.sheet),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(
-              AppSpace.xl,
-              AppSpace.xxl,
-              AppSpace.xl,
-              AppSpace.xl,
-            ),
-            child: _PinPanel(state: state, compact: true),
-          ),
-        ),
+        _sheet(tall: tall),
       ],
     );
+  }
+
+  Widget _sheet({required bool tall}) {
+    final sheet = Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.sheet),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.xl,
+        AppSpace.xxl,
+        AppSpace.xl,
+        AppSpace.xl,
+      ),
+      child: _PinPanel(
+        state: state,
+        compact: true,
+        // Tall screens let the keypad fill what is left. Short ones pin it to
+        // a comfortable size and let the page scroll.
+        rowHeight: tall ? null : 56,
+      ),
+    );
+    return tall ? Expanded(child: sheet) : sheet;
   }
 }
 
@@ -388,10 +418,18 @@ class _UserPicker extends StatelessWidget {
 
 /// The prompt, the dots, the keypad and the status message.
 class _PinPanel extends StatelessWidget {
-  const _PinPanel({required this.state, required this.compact});
+  const _PinPanel({
+    required this.state,
+    required this.compact,
+    this.rowHeight,
+  });
 
   final _LoginScreenState state;
   final bool compact;
+
+  /// Null lets the keypad fill the space it is given. A value pins each row,
+  /// for screens too short to share out.
+  final double? rowHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -431,7 +469,15 @@ class _PinPanel extends StatelessWidget {
           ),
         ),
 
-        if (compact)
+        if (compact && rowHeight != null)
+          PinKeypad(
+            onDigit: state._digit,
+            onClear: state._clear,
+            onBackspace: state._backspace,
+            enabled: ready && !state._busy,
+            rowHeight: rowHeight,
+          )
+        else if (compact)
           Expanded(
             child: PinKeypad(
               onDigit: state._digit,

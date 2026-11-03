@@ -109,9 +109,17 @@ abstract final class AppTouch {
 /// 600 is the conventional Material breakpoint and sits comfortably between.
 const double kTabletBreakpoint = 600;
 
+/// The shortest screen the two-pane layout fits on.
+///
+/// Width alone is the wrong test. A phone in landscape is 740x360: wide enough
+/// to pass a width check, far too short for a 520px panel holding a keypad.
+const double kTabletMinHeight = 600;
+
 /// True when this screen should use the two-pane tablet layout.
-bool isTablet(BuildContext context) =>
-    MediaQuery.sizeOf(context).width >= kTabletBreakpoint;
+bool isTablet(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  return size.width >= kTabletBreakpoint && size.height >= kTabletMinHeight;
+}
 
 /// The bundled font family. Declared in pubspec.yaml, never fetched.
 const String kFontFamily = 'AnekTelugu';
