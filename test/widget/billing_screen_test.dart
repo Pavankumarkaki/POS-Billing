@@ -1,6 +1,8 @@
 /// The billing screen and a complete sale, driven through the UI.
 library;
 
+import 'dart:io';
+
 import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,9 +14,38 @@ import 'package:restaurant_pos/data/db.dart';
 import 'package:restaurant_pos/data/menu_repository.dart';
 import 'package:restaurant_pos/data/setup_repository.dart';
 import 'package:restaurant_pos/features/billing/billing_screen.dart';
+import 'package:restaurant_pos/printing/fake_printer.dart';
+import 'package:restaurant_pos/printing/print_service.dart';
+import 'package:restaurant_pos/printing/printer.dart';
 import 'package:restaurant_pos/providers.dart';
 
 import 'harness.dart';
+
+
+/// A print service that reports a result without rendering anything.
+///
+/// Rendering calls `Picture.toImage`, which does real engine work that a
+/// widget test's fake clock never pumps: the future simply never completes and
+/// the screen sits on its spinner. The rendering itself is covered by
+/// test/printing; what these tests need is the UI contract around it — the
+/// bill is saved first, a failure offers a retry, and nothing blocks the next
+/// sale.
+class _StubPrintService extends PrintService {
+  _StubPrintService(super.db, {required super.printer});
+
+  bool shouldFail = false;
+  int calls = 0;
+
+  @override
+  Future<PrintResult> printBill(String billId, {bool duplicate = false}) async {
+    calls++;
+    if (shouldFail) {
+      shouldFail = false;
+      return const PrintResult.failure('The printer did not respond.');
+    }
+    return const PrintResult.success(artefactPath: '/stub/receipt.png');
+  }
+}
 
 void main() {
   late PosDatabase db;
@@ -74,12 +105,29 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+
+  /// Confirms the sale. The stub print service completes immediately, so the
+  /// screen settles.
+  Future<void> confirmSale(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('confirm-sale')));
+    await tester.pumpAndSettle();
+  }
+
+  late _StubPrintService stubPrinting;
+
   Future<void> show(WidgetTester tester, {Size? size}) async {
     await pumpScreen(
       tester,
       db: db,
       size: size ?? const Size(1280, 800),
       child: const BillingScreen(),
+      printService: (database) {
+        stubPrinting = _StubPrintService(
+          database,
+          printer: FakePrinter(directory: Directory.systemTemp),
+        );
+        return stubPrinting;
+      },
       before: (c) => c.read(sessionProvider.notifier).signIn(Session(
             userId: ownerId,
             name: 'Ravi',
@@ -217,8 +265,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('pay-full')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('confirm-sale')));
-      await tester.pumpAndSettle();
+      await confirmSale(tester);
 
       expect(find.text('Bill saved'), findsOneWidget);
       expect(find.text('A/2627/000001'), findsOneWidget);
@@ -242,8 +289,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('pay-full')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('confirm-sale')));
-      await tester.pumpAndSettle();
+      await confirmSale(tester);
       await tester.tap(find.byKey(const Key('next-bill')));
       await tester.pumpAndSettle();
 
@@ -257,8 +303,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('pay-full')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('confirm-sale')));
-        await tester.pumpAndSettle();
+        await confirmSale(tester);
         await tester.tap(find.byKey(const Key('next-bill')));
         await tester.pumpAndSettle();
       }
@@ -325,8 +370,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('pay-full')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('confirm-sale')));
-      await tester.pumpAndSettle();
+      await confirmSale(tester);
 
       final payments = await db.select(db.payments).get();
       expect(payments, hasLength(2));
@@ -349,8 +393,7 @@ void main() {
       await tester.enterText(find.byKey(const Key('part-amount')), '500');
       await tester.tap(find.byKey(const Key('add-part')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('confirm-sale')));
-      await tester.pumpAndSettle();
+      await confirmSale(tester);
 
       final payment = await db.select(db.payments).getSingle();
       final bill = await db.select(db.bills).getSingle();
@@ -375,6 +418,58 @@ void main() {
       await tester.tap(find.text('Undo last'));
       await tester.pumpAndSettle();
       expect(find.text('Received'), findsNothing);
+    });
+  });
+
+  group('printing after the sale', () {
+    testWidgets('a saved bill prints, and says so', (tester) async {
+      await show(tester);
+      await tapItem(tester, 'Chicken Dum Biryani');
+      await tester.tap(find.byKey(const Key('charge')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pay-full')));
+      await tester.pumpAndSettle();
+      await confirmSale(tester);
+
+      expect(find.text('Bill saved'), findsOneWidget);
+      expect(find.text('Receipt printed'), findsOneWidget);
+      expect(find.byKey(const Key('print-failed')), findsNothing);
+    });
+
+    testWidgets('a printer failure keeps the bill and offers a retry',
+        (tester) async {
+      await show(tester);
+      stubPrinting.shouldFail = true;
+
+      await tapItem(tester, 'Chicken Dum Biryani');
+      await tester.tap(find.byKey(const Key('charge')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pay-full')));
+      await tester.pumpAndSettle();
+      await confirmSale(tester);
+
+      // The bill is saved regardless.
+      final bill = await db.select(db.bills).getSingle();
+      expect(bill.invoiceNo, 'A/2627/000001');
+      expect(bill.status, BillStatus.paid);
+
+      // And the failure is shown, with a way out.
+      expect(find.text('Bill saved'), findsOneWidget);
+      expect(find.byKey(const Key('print-failed')), findsOneWidget);
+      expect(find.byKey(const Key('retry-print')), findsOneWidget);
+
+      // Next bill is NOT blocked by the printer problem.
+      final next = tester.widget<FilledButton>(
+        find.byKey(const Key('next-bill')),
+      );
+      expect(next.onPressed, isNotNull,
+          reason: 'a printer problem must never block the next sale');
+
+      // And the retry works.
+      await tester.tap(find.byKey(const Key('retry-print')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('print-failed')), findsNothing);
+      expect(find.text('Receipt printed'), findsOneWidget);
     });
   });
 }

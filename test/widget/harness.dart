@@ -5,10 +5,13 @@
 /// nothing in the screen itself needs to know.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_pos/data/db.dart';
+import 'package:restaurant_pos/printing/print_service.dart';
 import 'package:restaurant_pos/providers.dart';
 import 'package:restaurant_pos/theme/app_theme.dart';
 
@@ -30,6 +33,11 @@ Future<ProviderContainer> pumpScreen(
   required Widget child,
   Size? size,
   void Function(ProviderContainer container)? before,
+
+  /// Replaces the print service. Typed rather than a generic override list,
+  /// because `Override` lives in package:riverpod, which is not a direct
+  /// dependency, and one named hook is clearer than a list anyway.
+  PrintService Function(PosDatabase db)? printService,
 }) async {
   final surface = size ?? const Size(430, 3000);
 
@@ -38,8 +46,20 @@ Future<ProviderContainer> pumpScreen(
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
+  // Receipts go to a throwaway directory: the sale flow prints after saving,
+  // and a test must not write into the project or the user's documents.
+  final receipts = Directory.systemTemp.createTempSync('pos-test-receipts');
+  addTearDown(() {
+    if (receipts.existsSync()) receipts.deleteSync(recursive: true);
+  });
+
   final container = ProviderContainer(
-    overrides: [databaseProvider.overrideWithValue(db)],
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      receiptDirectoryProvider.overrideWithValue(receipts),
+      if (printService != null)
+        printServiceProvider.overrideWithValue(printService(db)),
+    ],
   );
   addTearDown(container.dispose);
 

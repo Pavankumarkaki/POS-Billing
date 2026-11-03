@@ -11,6 +11,8 @@
 /// a build goes wrong.
 library;
 
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/domain.dart';
@@ -19,6 +21,9 @@ import 'data/bill_repository.dart';
 import 'data/db.dart';
 import 'data/menu_repository.dart';
 import 'data/setup_repository.dart';
+import 'printing/fake_printer.dart';
+import 'printing/print_service.dart';
+import 'printing/printer.dart';
 
 /// The database. One per app run.
 ///
@@ -97,6 +102,31 @@ void refreshMenu(WidgetRef ref) {
   ref.invalidate(categoryTreeProvider);
   ref.invalidate(categoryItemsProvider);
 }
+
+/// Where the fake printer writes its receipts.
+///
+/// Overridden in tests with a temp directory. In the app it is the documents
+/// directory, so the owner can find the files through a file manager.
+final receiptDirectoryProvider = Provider<Directory>((ref) {
+  throw UnimplementedError('receiptDirectoryProvider must be overridden');
+});
+
+/// The printer in use.
+///
+/// Only the fake printer exists so far. Bluetooth and LAN arrive in milestone
+/// 7 and slot in here without anything above this line changing, which is the
+/// point of the Printer interface.
+final printerProvider = Provider<Printer>(
+  (ref) => FakePrinter(directory: ref.watch(receiptDirectoryProvider)),
+);
+
+/// Printing. One instance, so its queue really does serialise every job.
+final printServiceProvider = Provider<PrintService>(
+  (ref) => PrintService(
+    ref.watch(databaseProvider),
+    printer: ref.watch(printerProvider),
+  ),
+);
 
 /// Everyone who may be offered on the login screen.
 final activeUsersProvider = FutureProvider<List<UserRow>>((ref) async {

@@ -16,6 +16,7 @@ import '../../core/domain.dart';
 import '../../core/money.dart';
 import '../../core/tax.dart';
 import '../../data/bill_repository.dart';
+import '../../printing/printer.dart';
 import '../../providers.dart';
 import '../../theme/app_theme.dart';
 import 'cart.dart';
@@ -71,6 +72,11 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
   bool _busy = false;
   String? _error;
   SavedBill? _saved;
+
+  /// The result of the print attempt that follows the save. Null while it is
+  /// still running.
+  PrintResult? _print;
+  bool _printing = false;
 
   Paise get _total => widget.bill.total;
 
@@ -138,6 +144,10 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
           _saved = saved;
         });
       }
+
+      // Printing happens AFTER the commit, in its own step, and its result is
+      // reported separately. The bill exists whatever happens next.
+      await _attemptPrint(saved.id);
     } on Object catch (e) {
       if (mounted) {
         setState(() {
@@ -148,9 +158,34 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
     }
   }
 
+  /// Tries to print a bill that is already saved.
+  ///
+  /// Never throws and never touches the bill. The brief: a printer failure
+  /// must not lose a bill, change its number, or block the next sale.
+  Future<void> _attemptPrint(String billId) async {
+    if (mounted) setState(() => _printing = true);
+
+    final result =
+        await ref.read(printServiceProvider).printBill(billId);
+
+    if (mounted) {
+      setState(() {
+        _printing = false;
+        _print = result;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_saved != null) return _Saved(saved: _saved!);
+    if (_saved != null) {
+      return _Saved(
+        saved: _saved!,
+        print: _print,
+        printing: _printing,
+        onRetry: () => _attemptPrint(_saved!.id),
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -400,11 +435,22 @@ class _AmountRow extends StatelessWidget {
 /// Shown once the bill is written. Printing comes in milestone 7; until then
 /// this is where the invoice number appears.
 class _Saved extends StatelessWidget {
-  const _Saved({required this.saved});
+  const _Saved({
+    required this.saved,
+    required this.print,
+    required this.printing,
+    required this.onRetry,
+  });
+
   final SavedBill saved;
+  final PrintResult? print;
+  final bool printing;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final failed = print != null && !print!.ok;
+
     return Padding(
       padding: const EdgeInsets.all(AppSpace.xxl),
       child: Column(
@@ -414,6 +460,8 @@ class _Saved extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: const BoxDecoration(
+              // Green even when the print failed: the bill IS saved, and that
+              // is the thing that matters. The printer gets its own line.
               color: AppColors.primary,
               shape: BoxShape.circle,
             ),
@@ -439,15 +487,69 @@ class _Saved extends StatelessWidget {
             style: const TextStyle(fontSize: 20),
           ),
           const SizedBox(height: AppSpace.lg),
-          const Text(
-            'Printing arrives in milestone 7. The bill is already saved and '
-            'can be reprinted from Bills.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: AppColors.muted),
-          ),
+
+          if (printing)
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: AppSpace.sm),
+                Text('Printing...', style: TextStyle(fontSize: 15)),
+              ],
+            )
+          else if (failed)
+            Container(
+              key: const Key('print-failed'),
+              padding: const EdgeInsets.all(AppSpace.md),
+              decoration: BoxDecoration(
+                color: AppColors.dangerBg,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    print!.error ?? 'The receipt did not print.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.dangerText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.xs),
+                  const Text(
+                    'The bill is saved and keeps this number. You can try '
+                    'again, or carry on and reprint it later from Bills.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.dangerText,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  OutlinedButton(
+                    key: const Key('retry-print'),
+                    onPressed: onRetry,
+                    child: const Text('Try printing again'),
+                  ),
+                ],
+              ),
+            )
+          else if (print != null)
+            const Text(
+              'Receipt printed',
+              style: TextStyle(fontSize: 15, color: AppColors.muted),
+            ),
+
           const SizedBox(height: AppSpace.xl),
           FilledButton(
             key: const Key('next-bill'),
+            // Enabled even when printing failed: the brief requires that a
+            // printer problem never blocks the next sale.
             onPressed: () => Navigator.of(context).pop(),
             style: primaryActionStyle(),
             child: const Text('Next bill'),
