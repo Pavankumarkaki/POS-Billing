@@ -258,7 +258,7 @@ milestone done on anything I have not run.
 | **0** | ~~Toolchain spike~~ **DONE 2026-11-03.** Debug APK builds, app runs on an Android 17 emulator, `libsqlite3.so` in all three ABIs. | Native-assets risk settled. Bundled Telugu font verified rendering on device. |
 | 1 | `core/`: money, tax, invoice numbering, business date. No Flutter, no DB, no UI. | The rules. Heaviest test suite in the project. |
 | 2 | `data/`: schema v1, DAOs, `commitSale()` transaction, audit log, outbox. | Immutability, rollback, snapshots. |
-| 3 | First-run setup, PIN login, roles, lockout. FSSAI gate blocking billing. | Permission checks. |
+| 3 | ~~First-run setup, PIN login, roles, lockout~~ **DONE 2026-11-03.** Verified on an Android 17 emulator: setup → login → home, including in airplane mode. | Permission checks, lockout surviving restart, no PIN in the audit log. |
 | 4 | Menu management, EN/TE names, enable/disable. | Snapshots stay fixed after menu edits. |
 | 5 | Billing screen, phone one-handed and tablet two-pane, split payments. | A sale, end to end, saved. |
 | 6 | `printing/`: interface, bitmap renderer, fake printer, golden receipts EN + TE. | Receipts, inspectable as PNG without hardware. |

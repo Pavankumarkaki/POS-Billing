@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/domain.dart';
 import 'features/auth/login_screen.dart';
 import 'features/setup/setup_screen.dart';
 import 'providers.dart';
@@ -146,7 +147,9 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpace.xs),
               Text(
-                session?.role.wireName ?? '',
+                // Not role.wireName: that is the stored spelling, a storage
+                // detail, and it reads as lowercase "owner" on screen.
+                session?.role == UserRole.owner ? 'Owner' : 'Staff',
                 style: const TextStyle(fontSize: 15, color: AppColors.muted),
               ),
               const SizedBox(height: AppSpace.xxl),
