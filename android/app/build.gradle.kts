@@ -6,7 +6,16 @@ plugins {
 
 android {
     namespace = "com.deeptaai.restaurant_pos"
-    compileSdk = flutter.compileSdkVersion
+
+    // Pinned to 37 rather than flutter.compileSdkVersion (36), because
+    // permission_handler_android compiles against 37 and Gradle refuses to
+    // build an app against a lower SDK than one of its plugins.
+    //
+    // compileSdk only decides which APIs can be COMPILED against; it is
+    // backward compatible and does not raise the Android version the app runs
+    // on. minSdk and targetSdk below are untouched, so the range of devices
+    // this installs on is unchanged.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -15,7 +24,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.deeptaai.restaurant_pos"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

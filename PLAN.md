@@ -127,6 +127,31 @@ not a surprise later.
 `qr_flutter` 4.1.0 (2023) is also stale, but the UPI QR must go on a **1-bit bitmap**, not
 a widget, so I will generate the QR matrix directly rather than depend on it.
 
+### Known issues found while building, not yet acted on
+
+Recorded so they are not surprises later.
+
+**`workmanager` will break on a future Flutter.** The Android build warns:
+
+> Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+> workmanager_android. Future versions of Flutter will fail to build if your app
+> uses plugins that apply KGP.
+
+It builds fine on Flutter 3.47.9. `workmanager` is the nightly backup in
+milestone 10, so there is time, but if no KGP-free release exists by then the
+options are a different scheduler or Android's `WorkManager` through a small
+platform channel of our own. Checking this is part of milestone 10, not before.
+
+**AGP 9.1.0 versus compileSdk 37.** Flutter's template pins Android Gradle
+Plugin 9.1.0, whose maximum recommended `compileSdk` is 36, while
+`permission_handler_android` 14.1.1 requires at least 37. `compileSdk` is pinned
+to 37 in `android/app/build.gradle.kts`; if AGP enforces rather than warns, the
+fix is bumping AGP to 9.3.1, the smallest version that supports 37.
+
+Downgrading `permission_handler` would also resolve it and is the wrong trade:
+it would pin a March 2025 permissions plugin on a project whose printer depends
+on `BLUETOOTH_CONNECT` being requested correctly at runtime.
+
 ---
 
 ## 3. Architecture
