@@ -70,13 +70,24 @@ plainly to drop `sqlite3_flutter_libs` when upgrading.
 So the DB dependency becomes `drift` + `sqlite3: ^3.8.0`, with no `sqlite3_flutter_libs`
 and no `drift_flutter` (which still depends on the dead package).
 
-**This is the single biggest technical risk in the plan.** Build hooks are a newer
-mechanism and I cannot confirm, without the toolchain installed, whether Flutter 3.47.9
-runs them for an Android release build without an `--enable-experiment` flag. Milestone 0
-exists purely to prove this end to end on a real build before any feature code is written.
-If it fails, the fallback is pinning `sqlite3: ^2.x` with `sqlite3_flutter_libs: 0.5.42`
-(the last pre-EOL release, March 2026) and revisiting later. I will report which one we
-are on rather than quietly picking.
+~~**This is the single biggest technical risk in the plan.**~~ **RESOLVED, verified
+2026-11-03.** Milestone 0 is closed. The debug APK builds and the app runs on an
+Android 17 emulator. `libsqlite3.so` is present for all three ABIs, compiled from
+source by the build hook with no `sqlite3_flutter_libs`:
+
+```
+lib/arm64-v8a/libsqlite3.so     1,749,200
+lib/armeabi-v7a/libsqlite3.so   1,733,984
+lib/x86_64/libsqlite3.so        1,725,992
+```
+
+No `--enable-experiment` flag was needed: `enable-native-assets` is on by default
+in Flutter 3.47.9. The fallback (pinning `sqlite3: ^2.x` with the last pre-EOL
+`sqlite3_flutter_libs: 0.5.42`) is **not** needed and will not be used.
+
+What it cost, worth knowing before setting up another machine or a CI runner: the
+build hook compiles C, so it pulls the Android NDK (~2.2 GB, one time). Any machine
+building this app needs the NDK, not just a JDK.
 
 ### Substitution 2: `golden_toolkit` is abandoned
 
@@ -145,8 +156,9 @@ platform channel of our own. Checking this is part of milestone 10, not before.
 **AGP 9.1.0 versus compileSdk 37.** Flutter's template pins Android Gradle
 Plugin 9.1.0, whose maximum recommended `compileSdk` is 36, while
 `permission_handler_android` 14.1.1 requires at least 37. `compileSdk` is pinned
-to 37 in `android/app/build.gradle.kts`; if AGP enforces rather than warns, the
-fix is bumping AGP to 9.3.1, the smallest version that supports 37.
+to 37 in `android/app/build.gradle.kts`. **Settled: AGP 9.1.0 only warns, it does
+not enforce.** The build succeeds at compileSdk 37, so no AGP bump is needed. If a
+future AGP does enforce it, 9.3.1 is the smallest version supporting 37.
 
 Downgrading `permission_handler` would also resolve it and is the wrong trade:
 it would pin a March 2025 permissions plugin on a project whose printer depends
@@ -243,7 +255,7 @@ milestone done on anything I have not run.
 
 | # | Milestone | Proves |
 | --- | --- | --- |
-| **0** | **Toolchain spike.** Empty app, `drift` + `sqlite3` 3.x, write and read one row, debug APK builds. | Settles the §2 native-assets risk before anything is built on it. |
+| **0** | ~~Toolchain spike~~ **DONE 2026-11-03.** Debug APK builds, app runs on an Android 17 emulator, `libsqlite3.so` in all three ABIs. | Native-assets risk settled. Bundled Telugu font verified rendering on device. |
 | 1 | `core/`: money, tax, invoice numbering, business date. No Flutter, no DB, no UI. | The rules. Heaviest test suite in the project. |
 | 2 | `data/`: schema v1, DAOs, `commitSale()` transaction, audit log, outbox. | Immutability, rollback, snapshots. |
 | 3 | First-run setup, PIN login, roles, lockout. FSSAI gate blocking billing. | Permission checks. |
