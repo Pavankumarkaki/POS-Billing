@@ -13,9 +13,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/domain.dart';
 import 'features/auth/login_screen.dart';
 import 'features/setup/setup_screen.dart';
+import 'features/shell/app_shell.dart';
 import 'providers.dart';
 import 'theme/app_theme.dart';
 
@@ -47,7 +47,7 @@ class _Root extends ConsumerWidget {
         if (!isConfigured) return const SetupScreen();
         final session = ref.watch(sessionProvider);
         if (session == null) return const LoginScreen();
-        return const HomeScreen();
+        return const AppShell();
       },
     );
   }
@@ -108,64 +108,4 @@ class _Fatal extends StatelessWidget {
           ),
         ),
       );
-}
-
-/// A placeholder for milestones 4 and 5.
-///
-/// It exists so the login screen leads somewhere and the whole flow can be
-/// walked end to end. The billing grid replaces it.
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(sessionProvider);
-    final outlet = ref.watch(outletProvider).value;
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        title: Text(outlet?.name ?? 'Billing'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => ref.read(sessionProvider.notifier).signOut(),
-            icon: const Icon(Icons.lock_outline, color: Colors.white),
-            label: const Text('Lock', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.xxl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Signed in as ${session?.name ?? ''}',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: AppSpace.xs),
-              Text(
-                // Not role.wireName: that is the stored spelling, a storage
-                // detail, and it reads as lowercase "owner" on screen.
-                session?.role == UserRole.owner ? 'Owner' : 'Staff',
-                style: const TextStyle(fontSize: 15, color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpace.xxl),
-              const Text(
-                'Billing arrives in milestone 5.',
-                style: TextStyle(fontSize: 17, color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpace.sm),
-              const Text(
-                'చికెన్ దమ్ బిర్యానీ',
-                style: TextStyle(fontSize: 22),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
