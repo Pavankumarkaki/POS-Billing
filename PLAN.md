@@ -264,9 +264,44 @@ Stated so you can veto any of them, rather than discovering them later.
 
 ---
 
-## 7. Questions that block me
+## 7. Questions that blocked me: all four answered 2026-11-03
 
-Only these four. Everything else I will decide and tell you.
+| # | Question | Answer |
+| --- | --- | --- |
+| Q1 | Install the toolchain? | **Yes, into `~/flutter` and `~/Android/Sdk`.** Install started. JDK 21 needs one sudo command from you, below. |
+| Q2 | Which Telugu font? | **Anek Telugu**, matching the design canvas. One bundled family covers Latin and Telugu. |
+| Q3 | Item vs outlet tax rate? | **Item wins.** Each line is taxed at its own `tax_class`; the outlet mode sets the default for new items. Receipts and tax summaries group by rate. |
+| Q4 | Aggregator orders? | **No-tax chit marked "Aggregator order", and it consumes an invoice number.** Excluded from GST-payable, counted in turnover. |
+
+### What Q3 changes
+
+The tax engine groups lines by effective rate and emits one CGST/SGST block per rate, so
+a bill can carry a 5 % block and an 18 % block at once. `round_off` is still computed once
+on the bill total, not per rate block. The receipt template and the `sales by tax rate`
+export both become rate-grouped. This is in the milestone 1 test suite:
+a mixed-rate bill is one of the required cases.
+
+### What Q4 changes
+
+`order_type == aggregator` gets `doc_type = bill_of_supply` with an "Aggregator order"
+header, prints no tax lines, and still draws from the normal device sequence. Reports
+split "GST payable by the restaurant" from "total turnover", with aggregator GST in
+neither the first nor excluded from the second. CA_REVIEW.md will ask their CA to confirm
+this reading of section 9(5).
+
+### The one command I need you to run
+
+The Android Gradle Plugin does not support your JDK 25, so a JDK 21 has to go alongside
+it. This needs sudo, so it is yours to run, not mine:
+
+```bash
+sudo apt-get install -y openjdk-21-jdk
+```
+
+Everything else installs into your home directory with no privileges.
+
+<details>
+<summary>The original four questions, as asked</summary>
 
 **Q1. Can I install the toolchain, and where?**
 Flutter 3.47.9 into `~/flutter`, Android SDK into `~/Android/Sdk`, plus `openjdk-21-jdk`
@@ -309,6 +344,7 @@ the GST-payable summary but included in turnover, unless you say otherwise. Conf
 it affects the invoice series: if aggregator orders do not get a printed invoice, should
 they still consume an invoice number? I assume **yes**, so the series has no gaps.
 
+</details>
 ---
 
 ## 8. Out of scope, as agreed
