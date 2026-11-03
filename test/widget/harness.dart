@@ -22,11 +22,14 @@ import 'package:restaurant_pos/theme/app_theme.dart';
 /// exist and a test cannot type into them. Interaction tests therefore use a
 /// surface tall enough to build the whole form; layout and overflow tests pass
 /// a real device size explicitly.
-Future<void> pumpScreen(
+/// Returns the container, so a test can set state up (signing a user in, say)
+/// without touching providers from inside a build, which Riverpod forbids.
+Future<ProviderContainer> pumpScreen(
   WidgetTester tester, {
   required PosDatabase db,
   required Widget child,
   Size? size,
+  void Function(ProviderContainer container)? before,
 }) async {
   final surface = size ?? const Size(430, 3000);
 
@@ -35,9 +38,18 @@ Future<void> pumpScreen(
     ..devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
+  final container = ProviderContainer(
+    overrides: [databaseProvider.overrideWithValue(db)],
+  );
+  addTearDown(container.dispose);
+
+  // Runs before the first frame, so the screen's very first build already sees
+  // the signed-in session rather than flashing a refusal and rebuilding.
+  before?.call(container);
+
   await tester.pumpWidget(
-    ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+    UncontrolledProviderScope(
+      container: container,
       child: MaterialApp(
         theme: buildAppTheme(),
         home: child,
@@ -45,6 +57,7 @@ Future<void> pumpScreen(
     ),
   );
   await tester.pumpAndSettle();
+  return container;
 }
 
 /// Types [text] into the field whose label is [label].

@@ -17,6 +17,7 @@ import 'core/domain.dart';
 import 'data/auth_repository.dart';
 import 'data/bill_repository.dart';
 import 'data/db.dart';
+import 'data/menu_repository.dart';
 import 'data/setup_repository.dart';
 
 /// The database. One per app run.
@@ -67,6 +68,35 @@ final authRepositoryProvider = FutureProvider<AuthRepository?>((ref) async {
 final billRepositoryProvider = Provider<BillRepository>(
   (ref) => BillRepository(ref.watch(databaseProvider)),
 );
+
+/// The menu. Needs the device id for the audit log, so it waits for setup.
+final menuRepositoryProvider = FutureProvider<MenuRepository?>((ref) async {
+  final device = await ref.watch(deviceProvider.future);
+  if (device == null) return null;
+  return MenuRepository(ref.watch(databaseProvider), deviceId: device.id);
+});
+
+/// The category tree for the admin screen, disabled entries included so they
+/// can be brought back.
+final categoryTreeProvider = FutureProvider<List<CategoryTree>>((ref) async {
+  final menu = await ref.watch(menuRepositoryProvider.future);
+  if (menu == null) return const [];
+  return menu.categoryTree(includeInactive: true);
+});
+
+/// Items in one category, disabled ones included.
+final categoryItemsProvider =
+    FutureProvider.family<List<ItemRow>, String>((ref, categoryId) async {
+  final menu = await ref.watch(menuRepositoryProvider.future);
+  if (menu == null) return const [];
+  return menu.itemsIn(categoryId, includeInactive: true);
+});
+
+/// Invalidates everything that shows menu data. Called after any edit.
+void refreshMenu(WidgetRef ref) {
+  ref.invalidate(categoryTreeProvider);
+  ref.invalidate(categoryItemsProvider);
+}
 
 /// Everyone who may be offered on the login screen.
 final activeUsersProvider = FutureProvider<List<UserRow>>((ref) async {
