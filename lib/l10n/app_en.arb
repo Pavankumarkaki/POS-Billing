@@ -1,0 +1,5 @@
+{
+  "@@locale": "en",
+  "appTitle": "Billing",
+  "@appTitle": { "description": "The app name in the launcher and app bar" }
+}

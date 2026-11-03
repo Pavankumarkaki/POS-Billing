@@ -95,6 +95,35 @@ which needs no dependency. This changes nothing about test coverage.
   wants. The maintained alternatives are commercial-licensed, which your brief rules out,
   so this stays. CSV export does not depend on it, so a failure here degrades to CSV only.
 
+### Substitution 4: no `package:image` at all, found by first compile
+
+`flutter pub get` refused the stack as planned:
+
+```
+Because excel >=4.0.6 depends on archive ^3.6.1 and image >=4.12.0 depends
+on archive ^4.5.0, excel >=4.0.6 is incompatible with image >=4.12.0.
+```
+
+`excel` is pinned to `archive` 3.x and every `image` from 4.6.0 on needs
+`archive` 4.x, so keeping both meant holding `image` back about a year.
+
+Looking at why `image` was there at all, it should not have been. It ships only
+bitmap fonts and cannot shape Telugu, which needs real font shaping with
+reordering and conjuncts. The receipt therefore has to be drawn with Flutter's
+own text engine through `dart:ui` (`PictureRecorder`, `Canvas`, `Paragraph`)
+using the bundled Anek Telugu font, and `dart:ui` encodes PNG directly. So
+`image` bought nothing and caused a conflict.
+
+**Dropped.** Receipt rendering uses `dart:ui` only, which is also the right
+answer for Telugu rather than a workaround for a version clash. The UPI QR
+matrix is generated in plain Dart and drawn on the same canvas, which is why
+`qr_flutter` is not needed either.
+
+The cost: `excel` holds `archive` at 3.x for the whole project. If a later
+dependency needs `archive` 4.x, `excel` is the thing that has to go, and a
+minimal `.xlsx` writer over `archive` and `xml` is the fallback. Noted so it is
+not a surprise later.
+
 `qr_flutter` 4.1.0 (2023) is also stale, but the UPI QR must go on a **1-bit bitmap**, not
 a widget, so I will generate the QR matrix directly rather than depend on it.
 
