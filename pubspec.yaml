@@ -71,8 +71,15 @@ dev_dependencies:
 
   # Riverpod's generator. Only used for providers; nothing else generates code.
   riverpod_generator: ^4.0.9
-  custom_lint: ^0.7.0
-  riverpod_lint: ^3.0.0
+
+  # riverpod_lint catches Riverpod misuse the normal analyser cannot see.
+  #
+  # custom_lint is deliberately absent: it used to be required to host this
+  # plugin, but its latest release (0.8.1, September 2025) still wants
+  # analyzer 8.x while Riverpod's tooling is on 13/14, so it cannot resolve.
+  # riverpod_lint 3.1.9 no longer needs it, having moved to the official
+  # analysis_server_plugin mechanism.
+  riverpod_lint: ^3.1.9
 
 flutter:
   uses-material-design: true

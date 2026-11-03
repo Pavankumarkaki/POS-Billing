@@ -4,6 +4,8 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - android/**
   errors:
     # Money and tax bugs are silent. Anything the analyser can catch should fail
     # the build, not warn.
@@ -22,7 +24,6 @@ linter:
     - avoid_dynamic_calls
     - prefer_final_locals
     - prefer_const_constructors
-    - unnecessary_await_in_return
     - require_trailing_commas
     - avoid_print
     - cancel_subscriptions

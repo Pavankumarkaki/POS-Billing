@@ -22,7 +22,6 @@ import '../core/invoice_no.dart';
 import '../core/money.dart';
 import '../core/tax.dart';
 import 'db.dart';
-import 'tables.dart';
 
 /// Thrown when a sale cannot be saved. Always thrown *inside* the transaction,
 /// so the whole thing rolls back and no number is consumed.
@@ -97,8 +96,13 @@ class BillRepository {
   final Uuid _uuid;
   final DateTime Function() _clock;
 
-  /// UUIDv7: time-ordered, so bills sort by creation and a future sync has
-  /// globally unique ids without coordination.
+  /// UUIDv7: globally unique without coordination, which a later sync phase
+  /// needs, and time-ordered to the millisecond so rows sort by creation.
+  ///
+  /// "To the millisecond" is the whole guarantee: ids minted inside the same
+  /// millisecond have no defined order between them, because the rest of the
+  /// value is random. Anything that must be ordered exactly is ordered by its
+  /// timestamp column, not by its id.
   String _newId() => _uuid.v7();
 
   /// Saves a sale. Everything or nothing.

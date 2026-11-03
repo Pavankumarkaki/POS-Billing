@@ -116,9 +116,15 @@ class InvoiceNo {
     final seq = int.parse(m.group(4)!);
     if (seq < 1) return null;
 
-    // Resolve the two-digit year into a century. Anything from 70 on is 1900s,
-    // which keeps this working either side of 2000 without a config knob.
-    final startYear = startShort >= 70 ? 1900 + startShort : 2000 + startShort;
+    // Resolve the two-digit year into a century.
+    //
+    // Always the 2000s. An earlier version treated anything from 70 up as the
+    // 1900s, meaning to be safe either side of 2000, which made
+    // `A/9900/000001` parse as FY 1999-00 instead of 2099-00. There was no
+    // safety in it: this app did not exist before 2026, so no invoice number
+    // it will ever read encodes a 20th-century financial year. Two digits
+    // therefore span FY 2000-01 to 2099-00, outlasting any device this runs on.
+    final startYear = 2000 + startShort;
 
     return InvoiceNo(
       devicePrefix: m.group(1)!,

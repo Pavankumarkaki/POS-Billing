@@ -10,7 +10,7 @@
 /// formatting for the screen or the receipt.
 library;
 
-extension type const Paise(int value) implements Comparable<Paise> {
+extension type const Paise(int value) {
   /// Zero rupees.
   static const Paise zero = Paise(0);
 
@@ -147,7 +147,10 @@ extension type const Paise(int value) implements Comparable<Paise> {
     return shares.map(Paise.new).toList(growable: false);
   }
 
-  @override
+  /// Orders two amounts. Not an override: `Paise` deliberately does not
+  /// implement `Comparable<Paise>`, because an extension type may only
+  /// implement supertypes of its representation type and `int` implements
+  /// `Comparable<num>`.
   int compareTo(Paise other) => value.compareTo(other.value);
 
   /// `"240.00"`. Digits only, for CSV and receipt columns.

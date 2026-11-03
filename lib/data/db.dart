@@ -16,6 +16,14 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+// These look unused here, and are not: db.g.dart is a `part of` this library,
+// so the generated row classes and companions resolve Paise, TaxMode,
+// BusinessDate and the rest in this file's import scope, not in tables.dart's.
+import '../core/business_date.dart';
+import '../core/domain.dart';
+import '../core/money.dart';
+import '../core/tax.dart';
+import 'converters.dart';
 import 'tables.dart';
 
 part 'db.g.dart';
@@ -63,19 +71,15 @@ class PosDatabase extends _$PosDatabase {
           await _createIndexes();
         },
         onUpgrade: (m, from, to) async {
-          // Phase 1 ships schema v1, so there is nothing to upgrade yet. Each
-          // future version adds a numbered step here; the migration test
-          // asserts that every version from 1 to kSchemaVersion is reachable.
-          for (var v = from; v < to; v++) {
-            switch (v) {
-              // case 1: await m.addColumn(bills, bills.someNewColumn); break;
-              default:
-                throw StateError(
-                  'No migration from schema v$v to v${v + 1}. '
-                  'Add one in PosDatabase.migration.',
-                );
-            }
-          }
+          // Phase 1 ships schema v1, so nothing can need upgrading yet and this
+          // is unreachable. When v2 arrives its step goes here, keyed on `from`.
+          // Throwing rather than quietly doing nothing means a schemaVersion
+          // raised without a matching migration fails loudly instead of leaving
+          // a database half a version behind its code.
+          throw StateError(
+            'No migration from schema v$from to v$to. '
+            'Add one in PosDatabase.migration.',
+          );
         },
         beforeOpen: (details) async {
           // Drift does not turn these on for you, and SQLite defaults them off

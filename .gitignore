@@ -27,3 +27,8 @@ secrets/
 # Test output
 coverage/
 test/**/failures/
+
+# Generated Dart. Committed deliberately? No: regenerate with
+#   dart run build_runner build --delete-conflicting-outputs
+# db.g.dart is 11k lines of generated code and would dominate every diff.
+*.g.dart

@@ -54,8 +54,8 @@ class FinancialYearConverter extends TypeConverter<FinancialYear, String> {
       throw UnknownWireValue('fy', fromDb);
     }
     final short = int.parse(fromDb.substring(0, 2));
-    // Same century rule as InvoiceNo.tryParse: 70 and up is the 1900s.
-    return FinancialYear(short >= 70 ? 1900 + short : 2000 + short);
+    // Same century rule as InvoiceNo.tryParse: always the 2000s.
+    return FinancialYear(2000 + short);
   }
 
   @override

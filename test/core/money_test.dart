@@ -9,19 +9,19 @@ void main() {
     });
 
     test('arithmetic', () {
-      expect((Paise(24000) + Paise(3000)).value, 27000);
-      expect((Paise(24000) - Paise(3000)).value, 21000);
-      expect((Paise(2400) * 3).value, 7200);
-      expect((-Paise(2400)).value, -2400);
+      expect((const Paise(24000) + const Paise(3000)).value, 27000);
+      expect((const Paise(24000) - const Paise(3000)).value, 21000);
+      expect((const Paise(2400) * 3).value, 7200);
+      expect((-const Paise(2400)).value, -2400);
     });
 
     test('comparison', () {
-      expect(Paise(100) < Paise(200), isTrue);
-      expect(Paise(200) <= Paise(200), isTrue);
-      expect(Paise(300) > Paise(200), isTrue);
-      expect(Paise(200) >= Paise(201), isFalse);
-      expect(Paise(0).isZero, isTrue);
-      expect(Paise(-1).isNegative, isTrue);
+      expect(const Paise(100) < const Paise(200), isTrue);
+      expect(const Paise(200) <= const Paise(200), isTrue);
+      expect(const Paise(300) > const Paise(200), isTrue);
+      expect(const Paise(200) >= const Paise(201), isFalse);
+      expect(const Paise(0).isZero, isTrue);
+      expect(const Paise(-1).isNegative, isTrue);
     });
   });
 
@@ -60,65 +60,65 @@ void main() {
 
   group('percentBp', () {
     test('known GST rates', () {
-      expect(Paise(100000).percentBp(250).value, 2500); // 2.5% of 1000
-      expect(Paise(100000).percentBp(900).value, 9000); // 9% of 1000
-      expect(Paise(100000).percentBp(500).value, 5000); // 5% of 1000
-      expect(Paise(100000).percentBp(1800).value, 18000);
+      expect(const Paise(100000).percentBp(250).value, 2500); // 2.5% of 1000
+      expect(const Paise(100000).percentBp(900).value, 9000); // 9% of 1000
+      expect(const Paise(100000).percentBp(500).value, 5000); // 5% of 1000
+      expect(const Paise(100000).percentBp(1800).value, 18000);
     });
 
     test('rounds halves away from zero', () {
       // 2.5% of 70 paise is 1.75 paise -> 2
-      expect(Paise(70).percentBp(250).value, 2);
+      expect(const Paise(70).percentBp(250).value, 2);
       // 2.5% of 20 paise is 0.5 paise -> 1, not 0
-      expect(Paise(20).percentBp(250).value, 1);
-      expect(Paise(-20).percentBp(250).value, -1);
+      expect(const Paise(20).percentBp(250).value, 1);
+      expect(const Paise(-20).percentBp(250).value, -1);
     });
 
     test('a zero rate yields nothing', () {
-      expect(Paise(123456).percentBp(0).value, 0);
+      expect(const Paise(123456).percentBp(0).value, 0);
     });
   });
 
   group('rounding to rupees', () {
     test('roundToRupee goes to the nearest', () {
-      expect(Paise(24049).roundToRupee.value, 24000);
-      expect(Paise(24050).roundToRupee.value, 24100, reason: 'half goes up');
-      expect(Paise(24051).roundToRupee.value, 24100);
-      expect(Paise(24000).roundToRupee.value, 24000);
-      expect(Paise(-24050).roundToRupee.value, -24100);
+      expect(const Paise(24049).roundToRupee.value, 24000);
+      expect(const Paise(24050).roundToRupee.value, 24100, reason: 'half goes up');
+      expect(const Paise(24051).roundToRupee.value, 24100);
+      expect(const Paise(24000).roundToRupee.value, 24000);
+      expect(const Paise(-24050).roundToRupee.value, -24100);
     });
 
     test('ceilToRupee always goes up in magnitude', () {
-      expect(Paise(24001).ceilToRupee.value, 24100);
-      expect(Paise(24000).ceilToRupee.value, 24000);
-      expect(Paise(1).ceilToRupee.value, 100);
+      expect(const Paise(24001).ceilToRupee.value, 24100);
+      expect(const Paise(24000).ceilToRupee.value, 24000);
+      expect(const Paise(1).ceilToRupee.value, 100);
     });
   });
 
   group('allocate', () {
     test('every paisa is accounted for', () {
-      final parts = Paise(100).allocate(3);
+      final parts = const Paise(100).allocate(3);
       expect(parts.map((p) => p.value), [34, 33, 33]);
       expect(parts.fold(0, (s, p) => s + p.value), 100);
     });
 
     test('divides evenly when it can', () {
-      expect(Paise(900).allocate(3).map((p) => p.value), [300, 300, 300]);
+      expect(const Paise(900).allocate(3).map((p) => p.value), [300, 300, 300]);
     });
 
     test('negative amounts still sum back', () {
-      final parts = Paise(-100).allocate(3);
+      final parts = const Paise(-100).allocate(3);
       expect(parts.fold(0, (s, p) => s + p.value), -100);
     });
 
     test('rejects a non-positive part count', () {
-      expect(() => Paise(100).allocate(0), throwsArgumentError);
+      expect(() => const Paise(100).allocate(0), throwsArgumentError);
     });
   });
 
   group('allocateByWeights', () {
     test('splits in proportion and sums back exactly', () {
-      final parts = Paise(10000).allocateByWeights([24000, 12000, 6000]);
+      final parts = const Paise(10000).allocateByWeights([24000, 12000, 6000]);
       expect(parts.fold(0, (s, p) => s + p.value), 10000);
       // 24000:12000:6000 is 4:2:1 of 42000.
       expect(parts[0].value, greaterThan(parts[1].value));
@@ -127,53 +127,56 @@ void main() {
 
     test('an awkward split still sums back exactly', () {
       // 100 paise over three equal lines: someone must get the extra paisa.
-      final parts = Paise(100).allocateByWeights([1, 1, 1]);
+      final parts = const Paise(100).allocateByWeights([1, 1, 1]);
       expect(parts.fold(0, (s, p) => s + p.value), 100);
     });
 
     test('many lines, odd discount, nothing lost', () {
       final weights = List<int>.generate(17, (i) => (i + 1) * 137);
-      final parts = Paise(99991).allocateByWeights(weights);
+      final parts = const Paise(99991).allocateByWeights(weights);
       expect(parts.fold(0, (s, p) => s + p.value), 99991);
       expect(parts, hasLength(17));
     });
 
     test('zero weights fall back to an even split', () {
-      final parts = Paise(100).allocateByWeights([0, 0]);
+      final parts = const Paise(100).allocateByWeights([0, 0]);
       expect(parts.fold(0, (s, p) => s + p.value), 100);
     });
 
     test('no weights, no parts', () {
-      expect(Paise(100).allocateByWeights([]), isEmpty);
+      expect(const Paise(100).allocateByWeights([]), isEmpty);
     });
   });
 
   group('formatting', () {
     test('plain is for CSV and receipt columns', () {
-      expect(Paise(24000).plain, '240.00');
-      expect(Paise(24050).plain, '240.50');
-      expect(Paise(7).plain, '0.07');
-      expect(Paise(-24050).plain, '-240.50');
+      expect(const Paise(24000).plain, '240.00');
+      expect(const Paise(24050).plain, '240.50');
+      expect(const Paise(7).plain, '0.07');
+      expect(const Paise(-24050).plain, '-240.50');
     });
 
     test('rupees groups the Indian way', () {
-      expect(Paise(24000).rupees, '₹240.00');
-      expect(Paise(100000).rupees, '₹1,000.00');
-      expect(Paise(12405000).rupees, '₹1,24,050.00');
-      expect(Paise(1000000000).rupees, '₹10,00,000.00');
-      // 1 crore
-      expect(Paise(10000000000).rupees, '₹1,00,00,000.00');
+      expect(const Paise(24000).rupees, '₹240.00');
+      expect(const Paise(100000).rupees, '₹1,000.00');
+      expect(const Paise(12405000).rupees, '₹1,24,050.00');
+      // 10 lakh: 1e8 paise is 1e6 rupees.
+      expect(const Paise(100000000).rupees, '₹10,00,000.00');
+      // 1 crore: 1e9 paise is 1e7 rupees.
+      expect(const Paise(1000000000).rupees, '₹1,00,00,000.00');
+      // 10 crore.
+      expect(const Paise(10000000000).rupees, '₹10,00,00,000.00');
     });
 
     test('rupeesWhole drops the paise', () {
-      expect(Paise(24050).rupeesWhole, '₹240');
-      expect(Paise(12405000).rupeesWhole, '₹1,24,050');
-      expect(Paise(-24000).rupeesWhole, '₹-240');
+      expect(const Paise(24050).rupeesWhole, '₹240');
+      expect(const Paise(12405000).rupeesWhole, '₹1,24,050');
+      expect(const Paise(-24000).rupeesWhole, '₹-240');
     });
 
     test('small amounts are not grouped', () {
-      expect(Paise(100).rupees, '₹1.00');
-      expect(Paise(99900).rupees, '₹999.00');
+      expect(const Paise(100).rupees, '₹1.00');
+      expect(const Paise(99900).rupees, '₹999.00');
     });
   });
 }

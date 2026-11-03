@@ -6,14 +6,15 @@ library;
 
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+// drift exports isNull/isNotNull as SQL expression helpers, which collide
+// with flutter_test's matchers of the same name.
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:restaurant_pos/core/business_date.dart';
 import 'package:restaurant_pos/core/domain.dart';
 import 'package:restaurant_pos/core/money.dart';
 import 'package:restaurant_pos/core/tax.dart';
 import 'package:restaurant_pos/data/bill_repository.dart';
-import 'package:restaurant_pos/data/tables.dart';
+import 'package:restaurant_pos/data/db.dart';
 
 import 'fixture.dart';
 
@@ -152,16 +153,17 @@ void main() {
     for (final stage in SaleStage.values) {
       test('failing at $stage leaves no trace and no skipped number',
           () async {
-        expect(
-          () => sell(
+        // await expectLater, not bare expect: with an async callback a bare
+        // expect is not reliably awaited, and a rollback assertion that might
+        // not run is worse than no assertion at all.
+        await expectLater(
+          sell(
             failAt: (s) {
               if (s == stage) throw StateError('injected failure at $s');
             },
           ),
           throwsA(isA<StateError>()),
         );
-        // Let the failed future settle before asserting.
-        await Future<void>.delayed(Duration.zero);
 
         expect(await f.billCount(), 0, reason: 'no partial bill');
         expect(await f.lineCount(), 0, reason: 'no orphan lines');
@@ -489,12 +491,17 @@ void main() {
     });
 
     test('ids are UUIDv7, so they sort in creation order', () async {
+      // The 2 ms gap is the point, not noise: UUIDv7 embeds a millisecond
+      // timestamp, so it orders across milliseconds but not within one. Real
+      // sales are seconds apart, which is the case this asserts.
       final ids = <String>[];
       for (var i = 0; i < 5; i++) {
         ids.add((await sell()).id);
+        await Future<void>.delayed(const Duration(milliseconds: 2));
       }
+      expect(ids.toSet(), hasLength(5), reason: 'always unique');
       final sorted = [...ids]..sort();
-      expect(sorted, ids, reason: 'UUIDv7 is time-ordered');
+      expect(sorted, ids, reason: 'UUIDv7 is time-ordered to the millisecond');
     });
   });
 

@@ -2,13 +2,14 @@
 /// outlet, one device, an owner, a staff member and a small menu.
 library;
 
-import 'package:drift/drift.dart';
+// drift exports isNull/isNotNull as SQL expression helpers, which collide
+// with flutter_test's matchers of the same name.
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:restaurant_pos/core/business_date.dart';
 import 'package:restaurant_pos/core/domain.dart';
 import 'package:restaurant_pos/core/money.dart';
 import 'package:restaurant_pos/core/tax.dart';
 import 'package:restaurant_pos/data/db.dart';
-import 'package:restaurant_pos/data/tables.dart';
 
 const String kOutletId = 'outlet-1';
 const String kDeviceId = 'device-1';
@@ -92,7 +93,7 @@ class Fixture {
     await db.into(db.categories).insert(CategoriesCompanion.insert(
           id: kCategoryId,
           nameEn: 'Biryani',
-          nameTe: 'బిర్యానీ',
+          nameTe: const Value('బిర్యానీ'),
         ));
 
     final now = DateTime(2026, 6, 1, 12);
@@ -100,7 +101,7 @@ class Fixture {
           id: kItemBiryani,
           categoryId: kCategoryId,
           nameEn: 'Chicken Dum Biryani',
-          nameTe: Value('చికెన్ దమ్ బిర్యానీ'),
+          nameTe: const Value('చికెన్ దమ్ బిర్యానీ'),
           pricePaise: Paise.fromRupees(240),
           taxClass: TaxClass.gst5,
           updatedAt: now,
@@ -109,7 +110,7 @@ class Fixture {
           id: kItemColdDrink,
           categoryId: kCategoryId,
           nameEn: 'Bottled soft drink',
-          nameTe: Value('శీతల పానీయం'),
+          nameTe: const Value('శీతల పానీయం'),
           pricePaise: Paise.fromRupees(100),
           taxClass: TaxClass.gst18,
           updatedAt: now,

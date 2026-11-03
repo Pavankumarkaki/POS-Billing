@@ -7,13 +7,15 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart';
+// drift exports isNull/isNotNull as SQL expression helpers, which collide
+// with flutter_test's matchers of the same name.
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_pos/core/domain.dart';
 import 'package:restaurant_pos/core/money.dart';
 import 'package:restaurant_pos/core/tax.dart';
 import 'package:restaurant_pos/data/bill_repository.dart';
-import 'package:restaurant_pos/data/tables.dart';
+import 'package:restaurant_pos/data/db.dart';
 
 import 'fixture.dart';
 
@@ -475,7 +477,7 @@ void main() {
       });
     });
 
-    test('ids are unique and time-ordered', () async {
+    test('ids are unique', () async {
       final saved = await sell();
       for (var i = 0; i < 3; i++) {
         await repo.recordReprint(
@@ -487,9 +489,38 @@ void main() {
       final ids = (await f.db.select(f.db.auditLog).get())
           .map((e) => e.id)
           .toList();
+      expect(ids, hasLength(4));
       expect(ids.toSet(), hasLength(ids.length));
-      final sorted = [...ids]..sort();
-      expect(sorted, ids, reason: 'UUIDv7 sorts by creation time');
+    });
+
+    test('ordering by `at` is insertion order', () async {
+      // This, not id order, is what the app relies on and what idx_audit_at
+      // indexes. UUIDv7 is only time-ordered to the millisecond, so several
+      // entries written inside one millisecond have no guaranteed id order:
+      // the random bits decide. Asserting id order here was flaky for exactly
+      // that reason.
+      final saved = await sell();
+      for (var i = 0; i < 3; i++) {
+        await repo.recordReprint(
+          billId: saved.id,
+          userId: kOwnerId,
+          deviceId: kDeviceId,
+          at: DateTime(2026, 6, 1, 14, i * 5),
+        );
+      }
+
+      final rows = await (f.db.select(f.db.auditLog)
+            ..orderBy([(a) => OrderingTerm.asc(a.at)]))
+          .get();
+      expect(rows, hasLength(4));
+      expect(rows.first.action, AuditAction.billCreated);
+      for (var i = 1; i < rows.length; i++) {
+        expect(
+          rows[i].at.isAfter(rows[i - 1].at),
+          isTrue,
+          reason: 'row $i must be later than row ${i - 1}',
+        );
+      }
     });
   });
 }

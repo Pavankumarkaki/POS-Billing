@@ -8,10 +8,6 @@ library;
 
 import 'package:drift/drift.dart';
 
-import '../core/business_date.dart';
-import '../core/domain.dart';
-import '../core/money.dart';
-import '../core/tax.dart';
 import 'converters.dart';
 
 /// The restaurant. Exactly one row in Phase 1.
@@ -214,6 +210,7 @@ class Bills extends Table {
   IntColumn get total => integer().map(const PaiseConverter())();
 
   TextColumn get cancelReason => text().nullable()();
+  @ReferenceName('cancelledBills')
   TextColumn get cancelledBy => text().nullable().references(Users, #id)();
 
   /// For a later credit note phase. Always null in Phase 1.
@@ -226,6 +223,7 @@ class Bills extends Table {
   /// bill list has to show "by Owner" without a join on every row.
   /// `compositionTurnover` is stored rather than recomputed so a turnover
   /// report cannot drift if the tax mode changes later.
+  @ReferenceName('createdBills')
   TextColumn get createdBy => text().references(Users, #id)();
   IntColumn get compositionTurnover =>
       integer().map(const PaiseConverter()).withDefault(const Constant(0))();

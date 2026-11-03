@@ -9,14 +9,16 @@
 /// than silently doing nothing if a version is added without one.
 library;
 
-import 'package:drift/drift.dart';
+// drift exports isNull/isNotNull as SQL expression helpers, which collide
+// with flutter_test's matchers of the same name.
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_pos/core/business_date.dart';
 import 'package:restaurant_pos/core/domain.dart';
 import 'package:restaurant_pos/core/money.dart';
 import 'package:restaurant_pos/core/tax.dart';
+import 'package:restaurant_pos/data/converters.dart';
 import 'package:restaurant_pos/data/db.dart';
-import 'package:restaurant_pos/data/tables.dart';
 
 import 'fixture.dart';
 
@@ -69,13 +71,13 @@ void main() {
               itemId: 'x',
               nameSnapshot: 'x',
               qty: 1,
-              unitPrice: Paise(100),
+              unitPrice: const Paise(100),
               taxRate: 500,
               lineDiscount: Paise.zero,
-              lineTotal: Paise(105),
-              taxable: Paise(100),
-              cgst: Paise(3),
-              sgst: Paise(2),
+              lineTotal: const Paise(105),
+              taxable: const Paise(100),
+              cgst: const Paise(3),
+              sgst: const Paise(2),
             )),
         throwsA(anything),
       );
@@ -151,7 +153,7 @@ void main() {
       // An amount that a double would mangle.
       await (f.db.update(f.db.items)..where((i) => i.id.equals(kItemBiryani)))
           .write(ItemsCompanion(
-        pricePaise: Value(Paise(24049)),
+        pricePaise: const Value(Paise(24049)),
         updatedAt: Value(DateTime(2026, 6, 1)),
       ));
 
@@ -235,7 +237,7 @@ void main() {
 
     test('a business date round trips through its converter', () {
       const conv = BusinessDateConverter();
-      final d = BusinessDate(2026, 3, 2);
+      final d = const BusinessDate(2026, 3, 2);
       expect(conv.toSql(d), '2026-03-02');
       expect(conv.fromSql('2026-03-02'), d);
     });
@@ -260,19 +262,19 @@ void main() {
                 deviceId: kDeviceId,
                 deviceSeq: seq,
                 invoiceNo: no,
-                fy: FinancialYear(2026),
-                businessDate: BusinessDate(2026, 6, 1),
+                fy: const FinancialYear(2026),
+                businessDate: const BusinessDate(2026, 6, 1),
                 docType: DocType.invoice,
                 createdAt: DateTime(2026, 6, 1, 13),
                 status: BillStatus.paid,
                 orderType: OrderType.dine,
-                subtotal: Paise(24000),
+                subtotal: const Paise(24000),
                 discount: Paise.zero,
-                taxable: Paise(24000),
-                cgst: Paise(600),
-                sgst: Paise(600),
+                taxable: const Paise(24000),
+                cgst: const Paise(600),
+                sgst: const Paise(600),
                 roundOff: Paise.zero,
-                total: Paise(25200),
+                total: const Paise(25200),
                 createdBy: kOwnerId,
               ));
 
@@ -294,19 +296,19 @@ void main() {
                 deviceId: kDeviceId,
                 deviceSeq: seq,
                 invoiceNo: no,
-                fy: FinancialYear(2026),
-                businessDate: BusinessDate(2026, 6, 1),
+                fy: const FinancialYear(2026),
+                businessDate: const BusinessDate(2026, 6, 1),
                 docType: DocType.invoice,
                 createdAt: DateTime(2026, 6, 1, 13),
                 status: BillStatus.paid,
                 orderType: OrderType.dine,
-                subtotal: Paise(24000),
+                subtotal: const Paise(24000),
                 discount: Paise.zero,
-                taxable: Paise(24000),
-                cgst: Paise(600),
-                sgst: Paise(600),
+                taxable: const Paise(24000),
+                cgst: const Paise(600),
+                sgst: const Paise(600),
                 roundOff: Paise.zero,
-                total: Paise(25200),
+                total: const Paise(25200),
                 createdBy: kOwnerId,
               ));
 
@@ -328,19 +330,19 @@ void main() {
               deviceId: kDeviceId,
               deviceSeq: 1,
               invoiceNo: 'A/2627/0000001234567890',
-              fy: FinancialYear(2026),
-              businessDate: BusinessDate(2026, 6, 1),
+              fy: const FinancialYear(2026),
+              businessDate: const BusinessDate(2026, 6, 1),
               docType: DocType.invoice,
               createdAt: DateTime(2026, 6, 1, 13),
               status: BillStatus.paid,
               orderType: OrderType.dine,
-              subtotal: Paise(24000),
+              subtotal: const Paise(24000),
               discount: Paise.zero,
-              taxable: Paise(24000),
-              cgst: Paise(600),
-              sgst: Paise(600),
+              taxable: const Paise(24000),
+              cgst: const Paise(600),
+              sgst: const Paise(600),
               roundOff: Paise.zero,
-              total: Paise(25200),
+              total: const Paise(25200),
               createdBy: kOwnerId,
             )),
         throwsA(anything),

@@ -135,6 +135,11 @@ class FinancialYear implements Comparable<FinancialYear> {
   @override
   int compareTo(FinancialYear other) => startYear.compareTo(other.startYear);
 
+  bool operator <(FinancialYear other) => startYear < other.startYear;
+  bool operator <=(FinancialYear other) => startYear <= other.startYear;
+  bool operator >(FinancialYear other) => startYear > other.startYear;
+  bool operator >=(FinancialYear other) => startYear >= other.startYear;
+
   @override
   bool operator ==(Object other) =>
       other is FinancialYear && other.startYear == startYear;

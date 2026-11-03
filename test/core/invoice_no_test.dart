@@ -144,7 +144,7 @@ void main() {
     test('a century wrap parses as consecutive years', () {
       final no = InvoiceNo.build(
         devicePrefix: 'A',
-        fy: FinancialYear(2099),
+        fy: const FinancialYear(2099),
         seq: 1,
       );
       expect(no.formatted, 'A/9900/000001');
@@ -156,19 +156,19 @@ void main() {
     test('a fresh device starts at 1', () {
       const s = SequenceState(fy: FinancialYear(2026), nextSeq: 1);
       expect(s.nextSeq, 1);
-      expect(s.forDate(BusinessDate(2026, 4, 1)).nextSeq, 1);
+      expect(s.forDate(const BusinessDate(2026, 4, 1)).nextSeq, 1);
     });
 
     test('within the same year it carries on', () {
       const s = SequenceState(fy: FinancialYear(2026), nextSeq: 124);
-      final next = s.forDate(BusinessDate(2027, 3, 31));
+      final next = s.forDate(const BusinessDate(2027, 3, 31));
       expect(next.nextSeq, 124);
       expect(next.fy, const FinancialYear(2026));
     });
 
     test('a new financial year restarts at 1', () {
       const s = SequenceState(fy: FinancialYear(2026), nextSeq: 5000);
-      final next = s.forDate(BusinessDate(2027, 4, 1));
+      final next = s.forDate(const BusinessDate(2027, 4, 1));
       expect(next.nextSeq, 1, reason: 'the series restarts each April');
       expect(next.fy, const FinancialYear(2027));
     });
@@ -191,7 +191,7 @@ void main() {
       // Otherwise it would reissue numbers that are already on paper.
       const s = SequenceState(fy: FinancialYear(2027), nextSeq: 10);
       expect(
-        () => s.forDate(BusinessDate(2026, 6, 1)),
+        () => s.forDate(const BusinessDate(2026, 6, 1)),
         throwsA(isA<InvoiceNumberError>()),
       );
     });
@@ -208,12 +208,12 @@ void main() {
 
       // Three bills in March, then three in April.
       final days = [
-        BusinessDate(2027, 3, 30),
-        BusinessDate(2027, 3, 31),
-        BusinessDate(2027, 3, 31),
-        BusinessDate(2027, 4, 1),
-        BusinessDate(2027, 4, 1),
-        BusinessDate(2027, 4, 2),
+        const BusinessDate(2027, 3, 30),
+        const BusinessDate(2027, 3, 31),
+        const BusinessDate(2027, 3, 31),
+        const BusinessDate(2027, 4, 1),
+        const BusinessDate(2027, 4, 1),
+        const BusinessDate(2027, 4, 2),
       ];
 
       for (final day in days) {
@@ -244,7 +244,7 @@ void main() {
       var state = const SequenceState(fy: FinancialYear(2026), nextSeq: 1);
       final issued = <String>{};
       for (var i = 0; i < 2000; i++) {
-        state = state.forDate(BusinessDate(2026, 6, 1));
+        state = state.forDate(const BusinessDate(2026, 6, 1));
         issued.add(InvoiceNo.build(
           devicePrefix: 'A',
           fy: state.fy,
