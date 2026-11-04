@@ -301,7 +301,31 @@ milestone done on anything I have not run.
 | 8 | ~~Cancel with owner PIN and reason, reprint marked DUPLICATE~~ **DONE 2026-11-04**, verified on device: a wrong PIN was refused, the right one cancelled, and the bill kept its number, amount and lines. | Invoice number and amount survive cancellation; the PIN re-entry counts towards the lockout. |
 | 9 | ~~Reports: day/week/month, breakdowns, cutoff grouping, turnover warnings~~ **DONE 2026-11-04.** | Cancelled bills excluded everywhere; aggregator GST kept out of what the restaurant owes. |
 | 10 | ~~CSV + Excel export, nightly WorkManager backup, tested restore~~ **DONE 2026-11-04.** | Backup and restore round-trip, proved with real files on disk: write bills, back up, write more, restore, and check exactly which bills came back. |
-| 11 | Docs: README, HARDWARE_TEST.md, CA_REVIEW.md. Airplane-mode run-through. | Definition of done. |
+| 11 | ~~Docs: README, HARDWARE_TEST.md, CA_REVIEW.md. Airplane-mode run-through~~ **DONE 2026-11-04.** Release signing wired and checked three ways; full airplane-mode run on the emulator. | Definition of done: the brief's ten rules are a table in README.md with where each is enforced and the test that covers it, every path checked against the filesystem. |
+
+### Where it stands at the end of phase 1
+
+All eleven milestones are done. 835 tests pass, `flutter analyze` is clean,
+and debug and signed release APKs both build.
+
+**Verified on hardware (an Android 17 emulator), not assumed:** first-run
+setup, PIN login and lockout, menu management, billing end to end, saving,
+the fake printer, the bills list updating live, cancellation with the owner
+PIN, reports, backup, restore including the kept-aside database, both
+exports, the schema v1 to v2 migration against a real on-device database,
+and a full run in airplane mode.
+
+**Still untested, and each is in HARDWARE_TEST.md:** anything involving a
+real printer, Bluetooth above all; whether Android runs the nightly task over
+several nights on a real phone; the system folder picker and file picker,
+which were never driven; and restoring onto a phone that is not the one the
+backup came from.
+
+**The one thing I would fix first in phase 2:** the design canvas shows tax
+type, FSSAI and GSTIN as editable in Settings, and this app only collects them
+during first-run setup. Changing a wrong FSSAI number today means a
+reinstall, which costs the data. It is a gap against the design from milestone
+8, flagged rather than quietly built.
 
 ### What I will not be able to verify, and will say so
 
