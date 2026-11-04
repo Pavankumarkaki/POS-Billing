@@ -40,20 +40,14 @@ Future<void> showPaymentSheet(
       expand: false,
       initialChildSize: 0.9,
       maxChildSize: 0.95,
-      builder: (context, controller) => PaymentSheet(
-        bill: bill,
-        scrollController: controller,
-      ),
+      builder: (context, controller) =>
+          PaymentSheet(bill: bill, scrollController: controller),
     ),
   );
 }
 
 class PaymentSheet extends ConsumerStatefulWidget {
-  const PaymentSheet({
-    super.key,
-    required this.bill,
-    this.scrollController,
-  });
+  const PaymentSheet({super.key, required this.bill, this.scrollController});
 
   final ComputedBill bill;
   final ScrollController? scrollController;
@@ -80,8 +74,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
 
   Paise get _total => widget.bill.total;
 
-  Paise get _paid =>
-      _taken.fold(Paise.zero, (Paise s, p) => s + p.amount);
+  Paise get _paid => _taken.fold(Paise.zero, (Paise s, p) => s + p.amount);
 
   Paise get _due => _total - _paid;
 
@@ -129,7 +122,9 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
     });
 
     try {
-      final saved = await ref.read(billRepositoryProvider).commitSale(
+      final saved = await ref
+          .read(billRepositoryProvider)
+          .commitSale(
             computed: widget.bill,
             payments: List.of(_taken),
             deviceId: device.id,
@@ -165,8 +160,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
   Future<void> _attemptPrint(String billId) async {
     if (mounted) setState(() => _printing = true);
 
-    final result =
-        await ref.read(printServiceProvider).printBill(billId);
+    final result = await ref.read(printServiceProvider).printBill(billId);
 
     if (mounted) {
       setState(() {
@@ -237,10 +231,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
                       _modeLabel(t.mode),
                       style: const TextStyle(fontSize: 15),
                     ),
-                    Text(
-                      t.amount.rupees,
-                      style: const TextStyle(fontSize: 15),
-                    ),
+                    Text(t.amount.rupees, style: const TextStyle(fontSize: 15)),
                   ],
                 ),
               ),
@@ -287,8 +278,9 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
                   child: TextField(
                     key: const Key('part-amount'),
                     controller: _amountController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Part amount (₹)',
                     ),
@@ -301,8 +293,7 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
                   onPressed: _busy
                       ? null
                       : () {
-                          final amount =
-                              Paise.tryParse(_amountController.text);
+                          final amount = Paise.tryParse(_amountController.text);
                           if (amount == null) {
                             setState(() => _error = 'Enter an amount.');
                             return;
@@ -359,12 +350,12 @@ class _PaymentSheetState extends ConsumerState<PaymentSheet> {
   }
 
   static String _modeLabel(PaymentMode m) => switch (m) {
-        PaymentMode.cash => 'Cash',
-        PaymentMode.upi => 'UPI',
-        PaymentMode.card => 'Card',
-        PaymentMode.aggregator => 'Aggregator',
-        PaymentMode.credit => 'Credit',
-      };
+    PaymentMode.cash => 'Cash',
+    PaymentMode.upi => 'UPI',
+    PaymentMode.card => 'Card',
+    PaymentMode.aggregator => 'Aggregator',
+    PaymentMode.credit => 'Credit',
+  };
 }
 
 class _ModeChip extends StatelessWidget {
@@ -380,23 +371,21 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: selected ? AppColors.primary : AppColors.surface,
-          foregroundColor: selected ? Colors.white : AppColors.ink,
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.border,
-          ),
-          minimumSize: const Size(96, AppTouch.comfortable),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.medium),
-          ),
-        ),
-        child: Text(
-          _PaymentSheetState._modeLabel(mode),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      );
+    onPressed: onTap,
+    style: OutlinedButton.styleFrom(
+      backgroundColor: selected ? AppColors.primary : AppColors.surface,
+      foregroundColor: selected ? Colors.white : AppColors.ink,
+      side: BorderSide(color: selected ? AppColors.primary : AppColors.border),
+      minimumSize: const Size(96, AppTouch.comfortable),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+      ),
+    ),
+    child: Text(
+      _PaymentSheetState._modeLabel(mode),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+    ),
+  );
 }
 
 class _AmountRow extends StatelessWidget {
@@ -451,110 +440,118 @@ class _Saved extends StatelessWidget {
   Widget build(BuildContext context) {
     final failed = print != null && !print!.ok;
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpace.xxl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              // Green even when the print failed: the bill IS saved, and that
-              // is the thing that matters. The printer gets its own line.
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, color: Colors.white, size: 34),
-          ),
-          const SizedBox(height: AppSpace.md),
-          Text(
-            'Bill saved',
-            style: Theme.of(context).textTheme.displayMedium,
-          ),
-          const SizedBox(height: AppSpace.xs),
-          Text(
-            saved.invoiceNo.formatted,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          Text(
-            saved.computed.total.rupees,
-            style: const TextStyle(fontSize: 20),
-          ),
-          const SizedBox(height: AppSpace.lg),
-
-          if (printing)
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: AppSpace.sm),
-                Text('Printing...', style: TextStyle(fontSize: 15)),
-              ],
-            )
-          else if (failed)
+    // SizedBox, because the sheet lays its child out with a LOOSE width and a
+    // Column with mainAxisSize.min then takes the width of its widest child.
+    // On a 411pt phone that made this panel 204pt wide: a narrow white column
+    // down the middle with the billing grid showing either side of it. The
+    // payment step above never showed it because a ListView always expands.
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.xxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Container(
-              key: const Key('print-failed'),
-              padding: const EdgeInsets.all(AppSpace.md),
-              decoration: BoxDecoration(
-                color: AppColors.dangerBg,
-                borderRadius: BorderRadius.circular(AppRadius.medium),
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                // Green even when the print failed: the bill IS saved, and that
+                // is the thing that matters. The printer gets its own line.
+                color: AppColors.primary,
+                shape: BoxShape.circle,
               ),
-              child: Column(
-                children: [
-                  Text(
-                    print!.error ?? 'The receipt did not print.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: AppColors.dangerText,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.xs),
-                  const Text(
-                    'The bill is saved and keeps this number. You can try '
-                    'again, or carry on and reprint it later from Bills.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.dangerText,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  OutlinedButton(
-                    key: const Key('retry-print'),
-                    onPressed: onRetry,
-                    child: const Text('Try printing again'),
-                  ),
-                ],
-              ),
-            )
-          else if (print != null)
-            const Text(
-              'Receipt printed',
-              style: TextStyle(fontSize: 15, color: AppColors.muted),
+              child: const Icon(Icons.check, color: Colors.white, size: 34),
             ),
+            const SizedBox(height: AppSpace.md),
+            Text(
+              'Bill saved',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              saved.invoiceNo.formatted,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              saved.computed.total.rupees,
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: AppSpace.lg),
 
-          const SizedBox(height: AppSpace.xl),
-          FilledButton(
-            key: const Key('next-bill'),
-            // Enabled even when printing failed: the brief requires that a
-            // printer problem never blocks the next sale.
-            onPressed: () => Navigator.of(context).pop(),
-            style: primaryActionStyle(),
-            child: const Text('Next bill'),
-          ),
-        ],
+            if (printing)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: AppSpace.sm),
+                  Text('Printing...', style: TextStyle(fontSize: 15)),
+                ],
+              )
+            else if (failed)
+              Container(
+                key: const Key('print-failed'),
+                padding: const EdgeInsets.all(AppSpace.md),
+                decoration: BoxDecoration(
+                  color: AppColors.dangerBg,
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      print!.error ?? 'The receipt did not print.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: AppColors.dangerText,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    const Text(
+                      'The bill is saved and keeps this number. You can try '
+                      'again, or carry on and reprint it later from Bills.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.dangerText,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    OutlinedButton(
+                      key: const Key('retry-print'),
+                      onPressed: onRetry,
+                      child: const Text('Try printing again'),
+                    ),
+                  ],
+                ),
+              )
+            else if (print != null)
+              const Text(
+                'Receipt printed',
+                style: TextStyle(fontSize: 15, color: AppColors.muted),
+              ),
+
+            const SizedBox(height: AppSpace.xl),
+            FilledButton(
+              key: const Key('next-bill'),
+              // Enabled even when printing failed: the brief requires that a
+              // printer problem never blocks the next sale.
+              onPressed: () => Navigator.of(context).pop(),
+              style: primaryActionStyle(),
+              child: const Text('Next bill'),
+            ),
+          ],
+        ),
       ),
     );
   }

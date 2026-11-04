@@ -189,17 +189,19 @@ before it compiles.
 
 ## Building a release APK
 
-Never commit the keystore, `key.properties`, or any password. Both are already
-in `.gitignore`.
+The signing config is wired up and all three paths below were run on this
+project. Never commit the keystore, `key.properties`, or any password: both
+are already in `.gitignore`, in two places.
 
-Create a keystore once, outside the repository:
+### Once: make a keystore
+
+Outside the repository, somewhere you will not lose it:
 
 ```bash
-keytool -genkey -v -keystore ~/pos-release-key.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 -alias pos
+keytool -genkey -v -keystore ~/pos-release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias pos
 ```
 
-Create `android/key.properties`, also outside version control:
+Then `android/key.properties`, which is not in version control:
 
 ```properties
 storePassword=<your password>
@@ -208,22 +210,48 @@ keyAlias=pos
 storeFile=/home/deepta/pos-release-key.jks
 ```
 
-Then wire it into `android/app/build.gradle.kts` signing config and build:
+`storeFile` may be absolute, or relative to the `android/` directory.
+
+### Then: build
 
 ```bash
-flutter build apk --release              # one APK
-flutter build apk --split-per-abi        # smaller, per architecture
+flutter build apk --release --split-per-abi
 ```
 
-Output lands in `build/app/outputs/flutter-apk/`.
+Output lands in `build/app/outputs/flutter-apk/`. Measured on this project:
 
-**Back the keystore up somewhere safe.** Losing it means you can never ship an
-update to an app installed from it; Android will refuse an APK signed by a
-different key. Keep it off the device running the till.
+| What | Size | Use |
+| --- | --- | --- |
+| `app-arm64-v8a-release.apk` | 22.7 MB | **Almost every phone sold since 2017.** This is the one to install. |
+| `app-armeabi-v7a-release.apk` | 20.3 MB | Older 32-bit phones |
+| `app-x86_64-release.apk` | 24.2 MB | Emulators |
+| `app-release.apk` (no split) | 63.5 MB | All three architectures in one file |
 
-> Not yet done: the signing config is not wired into `build.gradle.kts` yet,
-> because no release build has been needed. The steps above are the standard
-> ones and have **not** been run on this project.
+The unsplit APK is three times the size for no benefit on a specific phone,
+and 63 MB is awkward to send over a phone connection. Build split unless you
+genuinely do not know which phone it is going on.
+
+### A release will not build without a key, on purpose
+
+With no `key.properties`, `flutter build apk --release` stops with an error
+naming the file. It does **not** fall back to the debug key, and the reason is
+sharper in this app than in most:
+
+An APK signed with the debug key cannot be upgraded by a properly signed one.
+Android refuses the install with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, and the
+only way out is to uninstall first. **Uninstalling deletes the default backup
+folder**, because it lives in `Android/data/<package>/`, which Android removes
+with the app. So a debug-signed release reaching the restaurant's phone can
+cost them their bills. This was confirmed on a device, not assumed: the
+`Android/data` folder is gone immediately after an uninstall.
+
+`flutter build apk --debug` is unaffected and needs no key.
+
+### Back the keystore up
+
+Losing it means never being able to update an app installed from it, with the
+same uninstall-and-lose-the-backups consequence. Keep a copy somewhere other
+than the laptop that built it, and not on the till.
 
 ## Printer troubleshooting
 
@@ -400,21 +428,40 @@ Three choices in there worth knowing:
 
 ## Rules this codebase does not break
 
-Listed because they are easy to break by accident and each has a test.
+The ten rules from the brief, each with where it is enforced and where it is
+tested. Checked against the code on 2026-11-04, not from memory.
 
-1. A paid bill is immutable. No amount or line is ever updated. No bill is ever
-   deleted.
-2. Cancelling keeps the invoice number and records status, reason and user.
-3. Every bill line stores a snapshot of name, price and tax rate. Menu edits
-   cannot change past bills or past reports.
-4. Money is integer paise. Never a double.
-5. The bill, its lines, its payments, the audit entry, the outbox entry and the
-   sequence increment commit in one transaction.
-6. The bill is saved before printing. A printer failure never loses a bill,
-   changes its number or blocks the next sale.
-7. Invoice numbers are unique within a financial year, at most 16 characters,
-   formatted `A/2627/000123`.
-8. The audit log is append-only.
-9. Every bill shows the 14-digit FSSAI number in every tax mode, and billing is
-   blocked until a valid one is saved.
-10. Everything works with no internet.
+| # | Rule | Enforced in | Tested in |
+| --- | --- | --- | --- |
+| 1 | A paid bill is immutable: no amount or line is ever updated, no bill is ever deleted | `data/bill_repository.dart` — the only `update` on `bill` is the cancel, and it writes status, reason and user only. There is no `delete` on `bill` anywhere | `test/data/immutability_test.dart` |
+| 2 | Cancelling keeps the invoice number and records status, reason and user | `bill_repository.dart` `cancelBill` | `test/data/immutability_test.dart`, `test/widget/bills_screen_test.dart` |
+| 3 | Every line stores a snapshot of name, price and tax rate | `data/tables.dart` `BillLines` | `test/data/immutability_test.dart`, group "snapshots survive menu edits": a rename, a price change, a tax-class change, a disable and an outlet tax-mode change all leave a past bill untouched |
+| 4 | Money is integer paise | `core/money.dart` `Paise`. The one exception is deliberate and at the boundary: `data/export_service.dart` converts to a real number so a spreadsheet column can be summed. Nothing reads it back | `test/core/money_test.dart`, `test/data/export_test.dart` |
+| 5 | Bill, lines, payments, audit entry, outbox entry and sequence increment commit in one transaction | `bill_repository.dart` `commitSale` | `test/data/sale_transaction_test.dart` — a failure injected at each of the six writes leaves nothing behind |
+| 6 | The bill is saved before printing; a printer failure never loses a bill, changes its number or blocks the next sale | `features/billing/payment_sheet.dart` — printing takes a bill id, which exists only after the commit | `test/widget/billing_screen_test.dart` (Next bill is enabled after a print failure) |
+| 7 | Invoice numbers unique within a financial year, at most 16 characters, `A/2627/000123` | `core/invoice_no.dart`, plus `UNIQUE (device_id, fy, device_seq)` and `UNIQUE (fy, invoice_no)` in `data/tables.dart` | `test/core/invoice_no_test.dart`, `test/data/migration_test.dart` |
+| 8 | The audit log is append-only | `data/` — there is no `update` or `delete` on `audit_log` anywhere in `lib/` | `test/data/immutability_test.dart` |
+| 9 | Every bill shows the 14-digit FSSAI number in every tax mode, and billing is blocked until a valid one is saved | `bill_repository.dart` checks it **inside** the transaction against the stored row, not against what the UI believes | `test/data/sale_transaction_test.dart`, `test/data/setup_test.dart`, `test/core/receipt_test.dart` |
+| 10 | Everything works with no internet | No HTTP client, no analytics, no cloud dependency. The only socket in `lib/` is `printing/lan_printer.dart`, which connects to a printer on the restaurant's own Wi-Fi | Run through on an emulator in airplane mode on 2026-11-04: sign in, bill, save, print, bills list, reports, backup and export all worked, with no network errors in the device log |
+
+### What the tests do not cover
+
+Worth knowing before trusting a green suite:
+
+- **Widget tests do not use the app's font.** `flutter test` runs with
+  `--use-test-fonts`, so every layout and overflow test measures a fallback
+  font rather than Anek Telugu. The fallback is wider, so the tests are
+  conservative rather than permissive, but a layout judged only by them has
+  not really been checked. Loading the real font in the harness was tried and
+  reverted: the cached loader future deadlocked across test zones.
+- **One sheet-width bug was fixed without a test that can fail.** The bill-saved
+  panel rendered half the width of the phone, because a bottom sheet lays its
+  child out with a loose width on a device and a tight one in a widget test. A
+  test was written, measured 342 of 390 either way, and was removed rather than
+  left looking like cover it does not give. The fix is verified on a device by
+  measuring the pixels: the panel went from 536 px of 1080 to the full 1080.
+- **Bluetooth printing is entirely unverified.** See HARDWARE_TEST.md.
+- **The nightly backup running on a real phone is unverifiable from here**, which
+  is why the backup screen reports the last success rather than the schedule.
+- **The system folder picker and file picker were never driven.** Restores were
+  tested by staging the file directly.

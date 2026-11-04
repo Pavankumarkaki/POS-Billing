@@ -808,11 +808,32 @@ class _PhoneTotalBar extends StatelessWidget {
             key: const Key('open-bill'),
             onPressed: onOpenBill,
             style: primaryActionStyle(),
+            // Flexible, because both halves grow: "12 items" on one side and
+            // "See bill · ₹1,24,050" on the other. A busy evening and a large
+            // total together are wider than a narrow phone, and a plain Row
+            // overflows rather than shortening. The total keeps its space;
+            // the item count gives way first, because the amount is the half
+            // nobody can afford to have clipped.
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('$itemCount item${itemCount == 1 ? '' : 's'}'),
-                Text('See bill · ${bill.total.rupeesWhole}'),
+                Flexible(
+                  child: Text(
+                    '$itemCount item${itemCount == 1 ? '' : 's'}',
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Flexible(
+                  flex: 2,
+                  child: Text(
+                    'See bill · ${bill.total.rupeesWhole}',
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                  ),
+                ),
               ],
             ),
           ),

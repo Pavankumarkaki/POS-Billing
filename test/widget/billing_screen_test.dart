@@ -253,6 +253,22 @@ void main() {
     });
   });
 
+  group('the phone total bar', () {
+    testWidgets('a busy cart and a large total do not overflow it',
+        (tester) async {
+      // "12 items" on one side and "See bill · ₹1,24,050" on the other is
+      // wider than a narrow phone. It shortened the item count rather than
+      // overflowing, which is why the total keeps the larger share.
+      await show(tester, size: const Size(320, 3000));
+      for (var i = 0; i < 60; i++) {
+        await tapItem(tester, 'Chicken Dum Biryani');
+      }
+
+      expect(find.byKey(const Key('open-bill')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('a complete sale', () {
     testWidgets('saves a bill with a number, lines and a payment',
         (tester) async {
