@@ -288,8 +288,17 @@ you have copied somewhere safe.
 - [ ] Take one more bill. Its number must not repeat a number already on a
       printed bill.
 - [ ] Confirm a file named `pos.replaced-<date>.sqlite` is in the app's
-      documents folder. That is the database the restore replaced, kept rather
-      than deleted, and it is how a restore from the wrong file is undone.
+      documents folder, **and a `-wal` file beside it with the same name**.
+      That pair is the database the restore replaced, kept rather than
+      deleted, and it is how a restore from the wrong file is undone. The
+      `-wal` holds the most recent bills, so a copy without it is not a
+      complete one; this was wrong once and is worth checking.
+
+**One thing the restore does not do yet, so you know before you rely on it.**
+The picker was not exercised on the emulator: the restore there was tested by
+putting the file in place directly. So step three above, picking the file
+through Android's own file chooser, is genuinely untested, and it is the step
+most likely to behave differently on a real phone.
 
 ### 10d. Restore onto a fresh install
 
