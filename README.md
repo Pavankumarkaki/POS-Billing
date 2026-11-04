@@ -275,21 +275,120 @@ Worth knowing, because three of them are not ours and look odd on a till app:
 | `BLUETOOTH`, `BLUETOOTH_ADMIN` | us | The same, on Android 11 and earlier. Capped at SDK 30. |
 | `INTERNET`, `ACCESS_NETWORK_STATE` | us | LAN printing on port 9100. Nothing leaves the building: there is no server, no analytics and no cloud dependency. |
 | `BLUETOOTH_SCAN` | `print_bluetooth_thermal` | **Declared but never used.** The app lists paired printers only and never scans. |
-| `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | `workmanager` | For the nightly backup in milestone 10. |
+| `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | `workmanager` | The nightly backup. Neither is used by this app: no notification is posted and no foreground service is started. |
 
 `INTERNET` is the one to be able to explain: it is there so the app can open a
 TCP socket to a printer on the restaurant's own Wi-Fi, and for nothing else.
 
 ## Backup and restore
 
-> **Not written yet.** Backup is milestone 10. It will cover the nightly
-> WorkManager job, choosing a folder, how to check the last successful backup
-> time, and how to restore onto a replacement device.
->
-> Worth knowing now: with no server, a backup that never leaves the device is
-> one lost phone away from losing every record. Whatever the schedule ends up
-> being, copying the backup file somewhere else is a manual step someone has to
-> actually do. See [CA_REVIEW.md](CA_REVIEW.md) section 5.
+Owner only, under Settings → **Open backup and export**.
+
+### What a backup is
+
+One file: a complete copy of the database, named
+`pos-backup-2026-11-04-0430.sqlite`. The newest fourteen are kept in the
+destination folder and older ones are removed; bills themselves are never
+touched by that, which is a different thing from the rule about never deleting
+a bill.
+
+Two details that are easy to get wrong and are worth knowing before changing
+anything in `lib/data/backup_service.dart`:
+
+- **The copy is made with `VACUUM INTO`, not a file copy.** The database runs
+  in WAL mode, so recent writes live in `pos.sqlite-wal`, and a copy of
+  `pos.sqlite` alone can be missing the last however-many bills while still
+  opening perfectly cleanly. `test/data/backup_test.dart` proves a naive copy
+  really would lose them, so if SQLite ever changes that, the test fails and
+  the comment can go.
+- **Every backup is verified before it counts.** The file is reopened, run
+  through `PRAGMA integrity_check`, and its bill count compared with the
+  source. A recorded success with no readable file behind it would be the worst
+  outcome of this whole feature, because it reads as safe.
+
+### Where it writes, and the thing to know about the default
+
+The default folder is the app's own external files directory,
+`Android/data/<package>/files/backups`. It needs no permission, works from the
+background, and can be reached with a file manager or a USB cable.
+
+**Android deletes it when the app is uninstalled.** A backup that only ever
+lives there does not survive losing or wiping the phone, so the screen says so
+and tells the owner to copy a file off the device now and then. This is the
+manual step [CA_REVIEW.md](CA_REVIEW.md) section 5 is about: there is no
+server, so nobody but the owner can do it.
+
+Choosing another folder goes through the system picker. On Android 11 and later
+that often hands back a path the app cannot actually write, so the app probes
+the folder by writing a test file and **refuses to save a destination that
+fails**, rather than accepting it and failing silently every night. If it is
+refused, either grant all-files access or stay on the default folder.
+
+### The nightly job, and why the screen does not trust it
+
+`workmanager` registers a daily task aiming at 4:30 AM, just after the 4 AM
+business-day cutoff so a run covers a whole trading day.
+
+Android does not promise to run a periodic task on time, or at all. Doze,
+battery saver, a phone switched off overnight and several manufacturers' own
+task killers all interfere. So the app never presents "automatic backup is on"
+as "a backup happened": the first thing on the backup screen is when the last
+one actually succeeded, and it warns when that is more than two days ago or has
+never happened.
+
+There is a second path that does not involve `workmanager` at all.
+`backupIfStale`, called at app start, backs up if the last good one is older
+than two days. On a phone whose manufacturer has gutted background work, this
+is the path that does the work, and backups then happen when the app is opened
+rather than overnight. Section 10b of [HARDWARE_TEST.md](HARDWARE_TEST.md) is
+how to find out which case a given phone is in.
+
+### Restoring
+
+A restore is **staged, not applied**. Replacing `pos.sqlite` under a live
+connection is how a database gets corrupted, so the chosen file is copied to
+`pos.sqlite.restore`, and `adoptStagedRestore` swaps it in at the next app
+start, before anything opens the database. That call is the first thing in
+`main()` for exactly that reason.
+
+The database being replaced is renamed to `pos.replaced-<timestamp>.sqlite`
+rather than deleted, so restoring the wrong file is itself recoverable. A
+backup from an older schema version is fine: the migrations run when it is
+opened. One from a newer version is refused with an explanation, because
+migrating backwards is not a thing.
+
+Restore asks for the owner's PIN even though the owner is already signed in,
+for the same reason cancelling a bill does, and it says how many bills are in
+the backup and when its newest bill is from **before** asking, so the cost is
+visible before it is agreed to.
+
+Test it before relying on it: section 10c of
+[HARDWARE_TEST.md](HARDWARE_TEST.md). An untested restore is a file you hope
+works.
+
+## Export for the accountant
+
+Same screen. Pick this month, last month or the financial year to date, then
+Excel or CSV.
+
+Six sheets: Summary, Sales by tax rate, SAC summary, Document counts, Bills and
+Items. Excel gives one `.xlsx`; CSV gives a folder with one file per sheet.
+Both land in `exports/` inside the backup folder, and the screen says where.
+
+Three choices in there worth knowing:
+
+- **Money is written as a number, not text.** An accountant opens the workbook
+  and sums a column, and a text column sums to zero. This is the only place in
+  the app where money becomes a floating-point value; everywhere else it is
+  integer paise, and the conversion happens at the boundary in
+  `lib/data/export_service.dart`.
+- **CSV files carry a UTF-8 byte-order mark.** Without it, Excel on Windows
+  opens them in the system code page and the Telugu item names come out as
+  mojibake.
+- **The SAC summary says its code needs confirming.** The app prints whatever
+  is in the outlet settings, which defaults to `9963`, and returns usually want
+  the six-digit code. That is item 1 of [CA_REVIEW.md](CA_REVIEW.md), and the
+  sheet says so rather than presenting a default as settled.
 
 ## The documents
 

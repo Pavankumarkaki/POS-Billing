@@ -228,6 +228,102 @@ height.
 
 ---
 
+## 10. Backup, restore and export
+
+None of this can be tested without the phone. Three of the items below are
+things I expect to break on at least one Android version, so please do them
+before you rely on a backup existing.
+
+### 10a. Where backups go
+
+- [ ] Settings → **Open backup and export**. Note the folder shown.
+- [ ] Tap **Back up now**. It should say how many bills went in and the file
+      name. Note both.
+- [ ] Find that file with a file manager, or over USB. Note whether you could.
+      The default folder is `Android/data/<package>/files/backups`, which some
+      file managers hide.
+- [ ] Tap **Choose a folder** and pick something in Documents or on an SD card.
+      **This is the one I most expect to fail.** Android 11 and later will hand
+      the app a folder path it is not allowed to write to, and the app checks
+      by writing a test file rather than assuming. Note exactly what it says.
+- [ ] If it was refused, back up to the default folder instead and note that
+      the owner has to copy files off the phone by hand.
+- [ ] If it was accepted, tap **Back up now** again and confirm a file really
+      appears in that folder.
+
+### 10b. Whether the nightly backup actually runs
+
+This is the one the app cannot know for itself, and the reason the last-backup
+time is at the top of that screen rather than a "backup is on" tick.
+
+- [ ] Leave **Back up automatically** on. Use the app normally for three days.
+- [ ] Each morning, open the backup screen and note the **Last backup** line.
+- [ ] If it says Today most mornings, WorkManager is running on this phone.
+- [ ] If it stops moving, note the phone's make, model and Android version, and
+      whether battery saver is on. Some manufacturers, Xiaomi, Oppo, Vivo and
+      Samsung among them, kill background work for apps not on an allow list.
+      The app has a second path that backs up when it starts if the last one is
+      more than two days old, so backups still happen; they happen when the app
+      is opened rather than overnight.
+- [ ] Check `Settings → Apps → <the app> → Battery` and note whether it is set
+      to Unrestricted. If the nightly job is not running, setting that is the
+      first thing to try.
+
+### 10c. Restore, which has to be tested before it is needed
+
+Do this on a phone with bills you can afford to lose, or right after a backup
+you have copied somewhere safe.
+
+- [ ] Back up. Note the bill count it reports.
+- [ ] Take two or three more bills.
+- [ ] **Restore from a backup** → pick that file. It should say how many bills
+      are in it and when the newest one is from, **before** asking for the PIN.
+- [ ] Enter the wrong PIN once. It must be refused.
+- [ ] Enter the right PIN. It should say to close the app completely and reopen
+      it.
+- [ ] Close the app from the recent-apps list, not just Back. Reopen it.
+- [ ] The backup screen should show a Restore notice saying how many bills came
+      back. The Bills tab should show the backed-up bills and **not** the two
+      or three taken afterwards.
+- [ ] Take one more bill. Its number must not repeat a number already on a
+      printed bill.
+- [ ] Confirm a file named `pos.replaced-<date>.sqlite` is in the app's
+      documents folder. That is the database the restore replaced, kept rather
+      than deleted, and it is how a restore from the wrong file is undone.
+
+### 10d. Restore onto a fresh install
+
+The case that matters if the phone is lost or wiped.
+
+- [ ] Copy a backup file onto a computer first. The app's default folder is
+      deleted when the app is uninstalled, so a backup that only ever lived
+      there will not survive this step.
+- [ ] Uninstall the app. Install it again.
+- [ ] It will ask for first-run setup. Complete it with anything.
+- [ ] Settings → backup → **Restore from a backup**, pick the copied file,
+      confirm, close and reopen.
+- [ ] The real outlet details, menu, users and bills should all be back.
+- [ ] Sign in with the **old** PIN, not the one typed during setup: the restore
+      brings the old users back with it.
+
+### 10e. The accountant's copy
+
+- [ ] On the backup screen, pick **This month** and tap **Excel**. Note where
+      it says it saved the file.
+- [ ] Open that `.xlsx` on a computer, or in Google Sheets on the phone.
+- [ ] Six tabs: Summary, Sales by tax rate, SAC summary, Document counts,
+      Bills, Items.
+- [ ] Telugu item names must read correctly, not as boxes or question marks.
+- [ ] Click a money column and sum it. If it sums, the numbers are numbers; if
+      it gives zero, they came out as text and I need to know.
+- [ ] Tap **CSV** as well. Open one of the files in Excel and check the Telugu
+      again: CSV is where encoding usually goes wrong.
+- [ ] Show the Summary and SAC summary tabs to the CA and ask the questions in
+      CA_REVIEW.md, particularly the SAC code. The export prints whatever is in
+      the outlet settings and says in the sheet that it needs confirming.
+
+---
+
 ## What to send me
 
 For anything that fails:
@@ -237,6 +333,15 @@ For anything that fails:
 3. Printer make and model.
 4. Which connection, Bluetooth or LAN.
 5. Whether a retry worked.
+
+For anything in section 10:
+
+1. The phone's make, model and Android version.
+2. Exactly what the app said, word for word. The messages name the folder and
+   the reason, and that is what tells me whether it is a permission problem or
+   something else.
+3. For section 10b, the Last backup line each morning, and whether the battery
+   setting is Unrestricted.
 
 The app also writes every print to the audit log, and in **Save to a file**
 mode it writes both a `.png` of what it tried to print and a `.bin` of the

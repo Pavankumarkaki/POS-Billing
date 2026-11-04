@@ -15,12 +15,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'core/domain.dart';
 import 'data/auth_repository.dart';
+import 'data/backup_service.dart';
+import 'data/backup_worker.dart';
 import 'data/bill_repository.dart';
 import 'data/db.dart';
+import 'data/export_service.dart';
 import 'data/menu_repository.dart';
+import 'data/settings_repository.dart';
 import 'data/setup_repository.dart';
 import 'printing/bluetooth_printer.dart';
 import 'printing/fake_printer.dart';
@@ -191,3 +197,112 @@ bool can(Ref ref, Permission permission) {
   if (session == null) return false;
   return session.can(permission);
 }
+
+// ---------------------------------------------------------------------------
+// Backup, restore and export.
+// ---------------------------------------------------------------------------
+
+/// The `setting` table, read and written by name.
+final settingsRepositoryProvider = Provider<SettingsRepository>(
+  (ref) => SettingsRepository(ref.watch(databaseProvider)),
+);
+
+/// The live database file, which the restore path needs in order to stage its
+/// replacement beside it.
+///
+/// Overridden in tests with a temp file, the same way [receiptDirectoryProvider]
+/// is: a widget test has no application documents directory.
+final databaseFileProvider = FutureProvider<File>((ref) async {
+  final dir = await getApplicationDocumentsDirectory();
+  return File(p.join(dir.path, kDatabaseFileName));
+});
+
+final backupServiceProvider = FutureProvider<BackupService>((ref) async {
+  final file = await ref.watch(databaseFileProvider.future);
+  return BackupService(ref.watch(databaseProvider), databaseFile: file);
+});
+
+final exportServiceProvider = Provider<ExportService>(
+  (ref) => ExportService(ref.watch(databaseProvider)),
+);
+
+/// Where backups are being written.
+final backupDirectoryProvider = FutureProvider<Directory>(
+  (ref) => BackupLocations.current(ref.watch(settingsRepositoryProvider)),
+);
+
+/// What the backup screen shows, and the one thing the brief insists on: when
+/// the last backup actually succeeded, rather than whether one is scheduled.
+class BackupStatus {
+  const BackupStatus({
+    required this.lastSuccessAt,
+    required this.lastFile,
+    required this.lastError,
+    required this.lastAttemptAt,
+    required this.nightlyEnabled,
+    required this.restoreNotice,
+    required this.directory,
+    required this.usingDefaultDirectory,
+    required this.now,
+  });
+
+  final DateTime? lastSuccessAt;
+  final String? lastFile;
+
+  /// Why the last attempt failed. Null when the last attempt succeeded.
+  final String? lastError;
+
+  final DateTime? lastAttemptAt;
+  final bool nightlyEnabled;
+
+  /// What a staged restore did at the last app start, if anything.
+  final String? restoreNotice;
+
+  final Directory directory;
+  final bool usingDefaultDirectory;
+  final DateTime now;
+
+  Duration? get age =>
+      lastSuccessAt == null ? null : now.difference(lastSuccessAt!);
+
+  /// Never having backed up counts as needing attention, not as a blank.
+  bool get needsAttention => backupNeedsAttention(age);
+
+  bool get everSucceeded => lastSuccessAt != null;
+}
+
+/// A stream, so a backup finishing anywhere, including in the background
+/// isolate, updates the screen without it having to poll or be reopened.
+final backupStatusProvider = StreamProvider<BackupStatus>((ref) async* {
+  final settings = ref.watch(settingsRepositoryProvider);
+  const keys = [
+    SettingKeys.backupLastSuccessAt,
+    SettingKeys.backupLastFile,
+    SettingKeys.backupLastError,
+    SettingKeys.backupLastAttemptAt,
+    SettingKeys.backupNightlyEnabled,
+    SettingKeys.backupDir,
+    SettingKeys.restoreNotice,
+  ];
+
+  await for (final values in settings.watchAll(keys)) {
+    final chosen = values[SettingKeys.backupDir];
+    yield BackupStatus(
+      lastSuccessAt:
+          DateTime.tryParse(values[SettingKeys.backupLastSuccessAt] ?? '')
+              ?.toLocal(),
+      lastFile: values[SettingKeys.backupLastFile],
+      lastError: values[SettingKeys.backupLastError],
+      lastAttemptAt:
+          DateTime.tryParse(values[SettingKeys.backupLastAttemptAt] ?? '')
+              ?.toLocal(),
+      nightlyEnabled:
+          values[SettingKeys.backupNightlyEnabled] != 'false',
+      restoreNotice: values[SettingKeys.restoreNotice],
+      directory: await BackupLocations.current(settings),
+      usingDefaultDirectory:
+          chosen == null || chosen.isEmpty || !Directory(chosen).existsSync(),
+      now: DateTime.now(),
+    );
+  }
+});

@@ -17,6 +17,7 @@ import '../../data/db.dart';
 import '../../printing/printer.dart';
 import '../../providers.dart';
 import '../../theme/app_theme.dart';
+import 'backup_screen.dart';
 
 class PrinterSettingsScreen extends ConsumerStatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -105,7 +106,7 @@ class _PrinterSettingsScreenState
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        title: const Text('Printer'),
+        title: const Text('Settings'),
       ),
       body: stored.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -226,6 +227,30 @@ class _PrinterSettingsScreenState
                         const SizedBox(height: AppSpace.md),
                         _TestOutcome(result: _testResult!),
                       ],
+                    ],
+                  ),
+
+                  _Section(
+                    title: 'Backup and export',
+                    children: [
+                      const Text(
+                        'Keep a copy of the bills, and give the accountant '
+                        'what they ask for.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      OutlinedButton(
+                        key: const Key('open-backup'),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const BackupScreen(),
+                          ),
+                        ),
+                        child: const Text('Open backup and export'),
+                      ),
                     ],
                   ),
                 ],

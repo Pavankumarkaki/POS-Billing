@@ -172,10 +172,21 @@ Recorded so they are not surprises later.
 > workmanager_android. Future versions of Flutter will fail to build if your app
 > uses plugins that apply KGP.
 
-It builds fine on Flutter 3.47.9. `workmanager` is the nightly backup in
-milestone 10, so there is time, but if no KGP-free release exists by then the
-options are a different scheduler or Android's `WorkManager` through a small
-platform channel of our own. Checking this is part of milestone 10, not before.
+It builds fine on Flutter 3.47.9. **Checked again on 2026-11-04 for milestone
+10: still unfixed.** `workmanager_android` 0.10.9, the newest, still applies
+`kotlin-android` in its own `android/build.gradle`, and nothing newer is
+published. So this stays a warning, not an error, and the app builds.
+
+I kept `workmanager` rather than work around it, for three reasons. The brief
+names WorkManager. The warning is the plugin's to fix, not ours. And the thing
+it would break is a build on a future Flutter, which is a known, dated,
+one-package problem rather than a silent one.
+
+What makes that acceptable rather than a gamble is that the nightly job is not
+the only backup path. `backupIfStale` runs at app start and depends on no
+plugin at all, so if `workmanager` ever has to be dropped, backups keep
+happening and only their timing changes. That was a deliberate design choice,
+not a lucky accident.
 
 **AGP 9.1.0 versus compileSdk 37.** Flutter's template pins Android Gradle
 Plugin 9.1.0, whose maximum recommended `compileSdk` is 36, while
@@ -289,7 +300,7 @@ milestone done on anything I have not run.
 | 7 | ~~Bluetooth + LAN printers, queue, reconnect, failure and retry UI~~ **DONE 2026-11-04**, with LAN verified against a real socket and Bluetooth unverified. | Printer failure never loses a bill. Bluetooth awaits HARDWARE_TEST.md. |
 | 8 | ~~Cancel with owner PIN and reason, reprint marked DUPLICATE~~ **DONE 2026-11-04**, verified on device: a wrong PIN was refused, the right one cancelled, and the bill kept its number, amount and lines. | Invoice number and amount survive cancellation; the PIN re-entry counts towards the lockout. |
 | 9 | ~~Reports: day/week/month, breakdowns, cutoff grouping, turnover warnings~~ **DONE 2026-11-04.** | Cancelled bills excluded everywhere; aggregator GST kept out of what the restaurant owes. |
-| 10 | CSV + Excel export, nightly WorkManager backup, tested restore. | Backup and restore round-trip. |
+| 10 | ~~CSV + Excel export, nightly WorkManager backup, tested restore~~ **DONE 2026-11-04.** | Backup and restore round-trip, proved with real files on disk: write bills, back up, write more, restore, and check exactly which bills came back. |
 | 11 | Docs: README, HARDWARE_TEST.md, CA_REVIEW.md. Airplane-mode run-through. | Definition of done. |
 
 ### What I will not be able to verify, and will say so

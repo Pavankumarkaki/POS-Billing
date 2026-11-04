@@ -144,6 +144,15 @@ and the Telugu translation file. The rate is in `lib/core/tax.dart`.
   tax rate, a SAC summary and document counts.
 - Everything lives on **one device**. There is no server and no cloud copy.
 
+**One detail now that the backup is built, because it looks worse than it is.**
+Only the newest **fourteen** backup files are kept; older ones are removed so
+the folder does not grow without end. That is not a fourteen-day retention
+policy. Retention is satisfied by the database itself, which holds every bill
+ever written and from which nothing is ever deleted; the backups exist to
+recover from a lost or broken phone, not to be the record. Worth saying out
+loud to the CA, because "we keep two weeks of backups" and "we keep two weeks
+of records" sound alike and only one of them would be a problem.
+
 **Why it needs confirming.** Section 36 of the CGST Act requires records to be
 kept for 72 months (six years) from the due date of the annual return. The app
 keeps them indefinitely, which is more than enough, but only as long as the

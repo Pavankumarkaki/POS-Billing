@@ -33,6 +33,13 @@ abstract final class SettingKeys {
 
   /// Whether the nightly job is wanted. Absent counts as on.
   static const backupNightlyEnabled = 'backup.nightly_enabled';
+
+  /// What a staged restore did at the last app start, successful or not.
+  ///
+  /// Deliberately not [backupLastError]: a restore that worked is not a
+  /// backup failure, and showing it as one would be its own small lie.
+  /// Cleared once the owner has seen it.
+  static const restoreNotice = 'restore.notice';
 }
 
 class SettingsRepository {
