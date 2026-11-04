@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../billing/billing_screen.dart';
 import '../bills/bills_screen.dart';
 import '../menu/menu_screen.dart';
+import '../reports/reports_screen.dart';
 import '../settings/printer_settings_screen.dart';
 
 /// A place the shell can show, and who may go there.
@@ -65,10 +66,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       Destination.menu => const MenuScreen(),
       Destination.billing => const BillingScreen(),
       Destination.bills => const BillsScreen(),
-      Destination.reports => const _Placeholder(
-          title: 'Reports',
-          note: 'Day, week and month reports arrive in milestone 9.',
-        ),
+      Destination.reports => const ReportsScreen(),
       Destination.settings => const PrinterSettingsScreen(),
     };
 
@@ -294,50 +292,6 @@ class _BottomButton extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Placeholder extends ConsumerWidget {
-  const _Placeholder({required this.title, required this.note});
-
-  final String title;
-  final String note;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final outlet = ref.watch(outletProvider).value;
-    final session = ref.watch(sessionProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        title: Text(outlet?.name ?? title),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpace.xxl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: AppSpace.sm),
-              Text(
-                note,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 17, color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpace.xl),
-              Text(
-                'Signed in as ${session?.name ?? ''}'
-                ' · ${session?.role == UserRole.owner ? 'Owner' : 'Staff'}',
-                style: const TextStyle(fontSize: 15, color: AppColors.muted),
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -288,7 +288,7 @@ milestone done on anything I have not run.
 | 6 | ~~`printing/`: interface, bitmap renderer, fake printer~~ **DONE 2026-11-03.** 10 sample receipts render to `build/receipts/`, and the app itself produced a receipt on the emulator (`app_flutter/receipts/`) with a valid ESC/POS byte stream beside it. | Receipts inspectable as PNG without hardware. Telugu conjuncts verified; mixed-rate arithmetic matches the engine. |
 | 7 | ~~Bluetooth + LAN printers, queue, reconnect, failure and retry UI~~ **DONE 2026-11-04**, with LAN verified against a real socket and Bluetooth unverified. | Printer failure never loses a bill. Bluetooth awaits HARDWARE_TEST.md. |
 | 8 | ~~Cancel with owner PIN and reason, reprint marked DUPLICATE~~ **DONE 2026-11-04**, verified on device: a wrong PIN was refused, the right one cancelled, and the bill kept its number, amount and lines. | Invoice number and amount survive cancellation; the PIN re-entry counts towards the lockout. |
-| 9 | Reports: day/week/month, breakdowns, cutoff grouping, turnover warnings. | Cancelled bills excluded. |
+| 9 | ~~Reports: day/week/month, breakdowns, cutoff grouping, turnover warnings~~ **DONE 2026-11-04.** | Cancelled bills excluded everywhere; aggregator GST kept out of what the restaurant owes. |
 | 10 | CSV + Excel export, nightly WorkManager backup, tested restore. | Backup and restore round-trip. |
 | 11 | Docs: README, HARDWARE_TEST.md, CA_REVIEW.md. Airplane-mode run-through. | Definition of done. |
 
