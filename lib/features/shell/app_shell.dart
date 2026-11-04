@@ -12,6 +12,7 @@ import '../../core/domain.dart';
 import '../../providers.dart';
 import '../../theme/app_theme.dart';
 import '../billing/billing_screen.dart';
+import '../bills/bills_screen.dart';
 import '../menu/menu_screen.dart';
 import '../settings/printer_settings_screen.dart';
 
@@ -63,10 +64,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final body = switch (_current) {
       Destination.menu => const MenuScreen(),
       Destination.billing => const BillingScreen(),
-      Destination.bills => const _Placeholder(
-          title: 'Bills',
-          note: 'Today\'s bills, cancel and reprint arrive in milestone 8.',
-        ),
+      Destination.bills => const BillsScreen(),
       Destination.reports => const _Placeholder(
           title: 'Reports',
           note: 'Day, week and month reports arrive in milestone 9.',
