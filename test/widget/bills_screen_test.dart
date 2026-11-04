@@ -422,4 +422,81 @@ void main() {
           findsOneWidget);
     });
   });
+
+  group('the list keeps up with what the app does', () {
+    testWidgets('a bill saved while the screen is open appears without a '
+        'restart', (tester) async {
+      // Reported from real use: ring up a bill, switch to Bills, and it is
+      // not there until the app is closed and reopened.
+      await db.delete(db.payments).go();
+      await db.delete(db.billLines).go();
+      await db.delete(db.bills).go();
+
+      await show(tester);
+      expect(find.textContaining('No bills today yet'), findsOneWidget);
+
+      final computed = computeBill(
+        cart: [
+          CartLine(
+            itemId: 'x',
+            nameSnapshot: 'Buttermilk',
+            unitPrice: Paise.fromRupees(30),
+            qty: 1,
+            taxClass: TaxClass.gst5,
+          ),
+        ],
+        config: const TaxConfig(
+          mode: TaxMode.regular5,
+          pricesIncludeTax: false,
+        ),
+        orderType: OrderType.dine,
+      );
+      final fresh = await BillRepository(db).commitSale(
+        computed: computed,
+        payments: [PaymentIntent(PaymentMode.cash, computed.total)],
+        deviceId: deviceId,
+        userId: ownerId,
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(fresh.invoiceNo.formatted),
+        findsWidgets,
+        reason: 'the list must follow the database, not a cached snapshot',
+      );
+      expect(find.textContaining('No bills today yet'), findsNothing);
+    });
+
+    testWidgets('the summary follows too', (tester) async {
+      await show(tester);
+      expect(find.text('1 paid'), findsOneWidget);
+
+      final computed = computeBill(
+        cart: [
+          CartLine(
+            itemId: 'x',
+            nameSnapshot: 'Buttermilk',
+            unitPrice: Paise.fromRupees(30),
+            qty: 1,
+            taxClass: TaxClass.gst5,
+          ),
+        ],
+        config: const TaxConfig(
+          mode: TaxMode.regular5,
+          pricesIncludeTax: false,
+        ),
+        orderType: OrderType.dine,
+      );
+      await BillRepository(db).commitSale(
+        computed: computed,
+        payments: [PaymentIntent(PaymentMode.cash, computed.total)],
+        deviceId: deviceId,
+        userId: ownerId,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 paid'), findsOneWidget);
+    });
+  });
 }

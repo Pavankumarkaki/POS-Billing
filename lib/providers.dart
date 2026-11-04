@@ -86,25 +86,29 @@ final menuRepositoryProvider = FutureProvider<MenuRepository?>((ref) async {
 
 /// The category tree for the admin screen, disabled entries included so they
 /// can be brought back.
-final categoryTreeProvider = FutureProvider<List<CategoryTree>>((ref) async {
+///
+/// A stream, so an edit made anywhere shows everywhere without a writer
+/// having to remember to invalidate it.
+final categoryTreeProvider =
+    StreamProvider<List<CategoryTree>>((ref) async* {
   final menu = await ref.watch(menuRepositoryProvider.future);
-  if (menu == null) return const [];
-  return menu.categoryTree(includeInactive: true);
+  if (menu == null) {
+    yield const [];
+    return;
+  }
+  yield* menu.watchCategoryTree(includeInactive: true);
 });
 
 /// Items in one category, disabled ones included.
 final categoryItemsProvider =
-    FutureProvider.family<List<ItemRow>, String>((ref, categoryId) async {
+    StreamProvider.family<List<ItemRow>, String>((ref, categoryId) async* {
   final menu = await ref.watch(menuRepositoryProvider.future);
-  if (menu == null) return const [];
-  return menu.itemsIn(categoryId, includeInactive: true);
+  if (menu == null) {
+    yield const [];
+    return;
+  }
+  yield* menu.watchItemsIn(categoryId, includeInactive: true);
 });
-
-/// Invalidates everything that shows menu data. Called after any edit.
-void refreshMenu(WidgetRef ref) {
-  ref.invalidate(categoryTreeProvider);
-  ref.invalidate(categoryItemsProvider);
-}
 
 /// Where the fake printer writes its receipts.
 ///

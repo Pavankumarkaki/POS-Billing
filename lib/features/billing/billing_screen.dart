@@ -18,19 +18,29 @@ import 'cart.dart';
 import 'payment_sheet.dart';
 
 /// Everything sellable, for the grid.
-final sellableItemsProvider = FutureProvider<List<ItemRow>>((ref) async {
+///
+/// A stream: the Menu tab writes and this reads, so a cached list would keep
+/// selling an item that was just disabled.
+final sellableItemsProvider = StreamProvider<List<ItemRow>>((ref) async* {
   final menu = await ref.watch(menuRepositoryProvider.future);
-  if (menu == null) return const [];
-  return menu.activeItems();
+  if (menu == null) {
+    yield const [];
+    return;
+  }
+  yield* menu.watchActiveItems();
 });
 
 /// Categories that have something sellable in them.
 final sellableCategoriesProvider =
-    FutureProvider<List<CategoryRow>>((ref) async {
+    StreamProvider<List<CategoryRow>>((ref) async* {
   final menu = await ref.watch(menuRepositoryProvider.future);
-  if (menu == null) return const [];
-  final tree = await menu.categoryTree();
-  return [for (final node in tree) node.category];
+  if (menu == null) {
+    yield const [];
+    return;
+  }
+  yield* menu
+      .watchCategoryTree()
+      .map((tree) => [for (final node in tree) node.category]);
 });
 
 class BillingScreen extends ConsumerStatefulWidget {

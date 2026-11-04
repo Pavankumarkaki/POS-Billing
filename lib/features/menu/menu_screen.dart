@@ -71,7 +71,8 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       );
     }
 
-    refreshMenu(ref);
+    // No invalidation: the menu providers are streams and have already
+    // updated from the database.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Saved')),
@@ -91,7 +92,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
 
     final menu = await ref.read(menuRepositoryProvider.future);
     await menu?.createCategory(nameEn: name, byUserId: session.userId);
-    refreshMenu(ref);
   }
 
   @override

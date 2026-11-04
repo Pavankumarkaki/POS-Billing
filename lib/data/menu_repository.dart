@@ -121,6 +121,69 @@ class MenuRepository {
         ]))
       .get();
 
+  /// Everything sellable, as a live stream.
+  ///
+  /// The billing grid uses this rather than a one-shot read. The Menu tab
+  /// writes and the Billing tab reads, so a cached grid keeps selling an item
+  /// that was just disabled, and hides one that was just added, until the app
+  /// is restarted.
+  Stream<List<ItemRow>> watchActiveItems() => (_db.select(_db.items)
+        ..where((i) => i.isActive.equals(true))
+        ..orderBy([
+          (i) => OrderingTerm.asc(i.sort),
+          (i) => OrderingTerm.asc(i.nameEn),
+        ]))
+      .watch();
+
+  /// The category tree, as a live stream.
+  Stream<List<CategoryTree>> watchCategoryTree({
+    bool includeInactive = false,
+  }) {
+    final query = _db.select(_db.categories)
+      ..orderBy([
+        (c) => OrderingTerm.asc(c.sort),
+        (c) => OrderingTerm.asc(c.nameEn),
+      ]);
+    if (!includeInactive) {
+      query.where((c) => c.isActive.equals(true));
+    }
+
+    return query.watch().map((all) {
+      final parents = all.where((c) => c.parentId == null);
+      return [
+        for (final parent in parents)
+          CategoryTree(
+            category: parent,
+            children: all
+                .where((c) => c.parentId == parent.id)
+                .toList(growable: false),
+          ),
+      ];
+    });
+  }
+
+  /// Items in a category, as a live stream.
+  Stream<List<ItemRow>> watchItemsIn(
+    String categoryId, {
+    bool includeInactive = false,
+  }) async* {
+    final children = await (_db.select(_db.categories)
+          ..where((c) => c.parentId.equals(categoryId)))
+        .get();
+    final ids = [categoryId, ...children.map((c) => c.id)];
+
+    final query = _db.select(_db.items)
+      ..where((i) => i.categoryId.isIn(ids))
+      ..orderBy([
+        (i) => OrderingTerm.asc(i.sort),
+        (i) => OrderingTerm.asc(i.nameEn),
+      ]);
+    if (!includeInactive) {
+      query.where((i) => i.isActive.equals(true));
+    }
+    yield* query.watch();
+  }
+
   /// Items matching [term] in either language.
   ///
   /// Searching both scripts matters: the owner may type "biryani" while the

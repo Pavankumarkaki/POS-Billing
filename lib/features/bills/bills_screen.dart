@@ -69,10 +69,9 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     final cancelled = await showCancelDialog(context, ref, bill);
     if (!cancelled || !mounted) return;
 
-    ref
-      ..invalidate(billsForTodayProvider)
-      ..invalidate(todaySummaryProvider)
-      ..invalidate(billHistoryProvider(bill.id));
+    // The list and the summary are streams and have already updated. Only
+    // the audit history needs a nudge, since it is a one-shot read.
+    ref.invalidate(billHistoryProvider(bill.id));
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${bill.invoiceNo} cancelled')),
@@ -672,15 +671,22 @@ final billsQueryProvider = Provider<BillsQuery>(
   (ref) => BillsQuery(ref.watch(databaseProvider)),
 );
 
+/// Streams, not futures.
+///
+/// A future caches, and the screen that writes a bill is not the screen that
+/// lists them: a sale on the Billing tab left the Bills tab showing the state
+/// from before it, until the app was restarted. Drift re-runs these whenever
+/// the bill table changes, so no writer has to remember to invalidate
+/// anything and the bug cannot come back through a new code path.
 final billsForTodayProvider =
-    FutureProvider<List<BillListEntry>>((ref) async {
+    StreamProvider<List<BillListEntry>>((ref) async* {
   final day = await ref.watch(todayProvider.future);
-  return ref.watch(billsQueryProvider).forDay(day);
+  yield* ref.watch(billsQueryProvider).watchForDay(day);
 });
 
-final todaySummaryProvider = FutureProvider<DaySummary>((ref) async {
+final todaySummaryProvider = StreamProvider<DaySummary>((ref) async* {
   final day = await ref.watch(todayProvider.future);
-  return ref.watch(billsQueryProvider).summaryFor(day);
+  yield* ref.watch(billsQueryProvider).watchSummaryFor(day);
 });
 
 final fullBillProvider =

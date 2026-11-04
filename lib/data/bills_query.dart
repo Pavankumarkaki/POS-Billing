@@ -112,6 +112,36 @@ class BillsQuery {
     return _decorate(bills, filter);
   }
 
+  /// Bills for one business day, as a live stream.
+  ///
+  /// Drift re-runs the query whenever the `bill` table changes, so the list
+  /// follows the database instead of a snapshot taken when the screen was
+  /// built. That matters because the screen that WRITES a bill is not the
+  /// screen that LISTS them: billing saves, the owner switches to Bills, and
+  /// a cached list would still show the state from before the sale. It did,
+  /// until this was a stream.
+  ///
+  /// Lines and payments are written in the same transaction as the bill, so
+  /// by the time this fires they are committed too.
+  Stream<List<BillListEntry>> watchForDay(
+    BusinessDate day, {
+    BillFilter filter = BillFilter.all,
+  }) {
+    final query = _db.select(_db.bills)
+      ..where((b) => b.businessDate.equals(day.iso))
+      ..orderBy([(b) => OrderingTerm.desc(b.deviceSeq)]);
+
+    return query.watch().asyncMap((bills) => _decorate(bills, filter));
+  }
+
+  /// The header figures for a day, as a live stream.
+  Stream<DaySummary> watchSummaryFor(BusinessDate day) {
+    final query = _db.select(_db.bills)
+      ..where((b) => b.businessDate.equals(day.iso));
+
+    return query.watch().map(_summarise);
+  }
+
   /// Bills across a range of business days, newest first.
   Future<List<BillListEntry>> forRange(
     BusinessDate from,
@@ -148,6 +178,12 @@ class BillsQuery {
           ..where((b) => b.businessDate.equals(day.iso)))
         .get();
 
+    return _summarise(bills);
+  }
+
+  /// Cancelled bills are excluded from the total, as the brief requires, but
+  /// counted separately so they do not simply disappear.
+  static DaySummary _summarise(List<BillRow> bills) {
     var total = Paise.zero;
     var paid = 0;
     var cancelled = 0;

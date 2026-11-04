@@ -472,4 +472,54 @@ void main() {
       expect(find.text('Receipt printed'), findsOneWidget);
     });
   });
+
+  group('the grid keeps up with the menu', () {
+    testWidgets('an item added while the screen is open appears without a '
+        'restart', (tester) async {
+      await show(tester);
+      expect(find.text('Mutton Dum Biryani'), findsNothing);
+
+      final menu = MenuRepository(
+        db,
+        deviceId: (await db.select(db.devices).getSingle()).id,
+      );
+      final cats = await menu.categoryTree();
+      await menu.createItem(
+        categoryId: cats.first.category.id,
+        nameEn: 'Mutton Dum Biryani',
+        price: Paise.fromRupees(340),
+        taxClass: TaxClass.gst5,
+        byUserId: ownerId,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Mutton Dum Biryani'),
+        findsOneWidget,
+        reason: 'the Menu tab writes, the Billing tab reads: a cached grid '
+            'would still show the state from before the edit',
+      );
+    });
+
+    testWidgets('an item disabled elsewhere stops being sellable at once',
+        (tester) async {
+      await show(tester);
+      expect(find.text('Buttermilk'), findsOneWidget);
+
+      final menu = MenuRepository(
+        db,
+        deviceId: (await db.select(db.devices).getSingle()).id,
+      );
+      final buttermilk = (await db.select(db.items).get())
+          .firstWhere((i) => i.nameEn == 'Buttermilk');
+      await menu.setItemActive(
+        id: buttermilk.id,
+        isActive: false,
+        byUserId: ownerId,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Buttermilk'), findsNothing);
+    });
+  });
 }
