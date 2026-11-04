@@ -11,6 +11,7 @@
 /// a build goes wrong.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,9 @@ import 'data/bill_repository.dart';
 import 'data/db.dart';
 import 'data/menu_repository.dart';
 import 'data/setup_repository.dart';
+import 'printing/bluetooth_printer.dart';
 import 'printing/fake_printer.dart';
+import 'printing/lan_printer.dart';
 import 'printing/print_service.dart';
 import 'printing/printer.dart';
 
@@ -111,14 +114,37 @@ final receiptDirectoryProvider = Provider<Directory>((ref) {
   throw UnimplementedError('receiptDirectoryProvider must be overridden');
 });
 
-/// The printer in use.
+/// The printer settings stored on the device row.
+final printerConfigProvider = FutureProvider<PrinterConfig>((ref) async {
+  final device = await ref.watch(deviceProvider.future);
+  if (device == null) return const PrinterConfig();
+  try {
+    return PrinterConfig.fromJson(
+      jsonDecode(device.printerCfg) as Map<String, Object?>,
+    );
+  } on Object {
+    // A corrupt setting must not stop the restaurant billing.
+    return const PrinterConfig();
+  }
+});
+
+/// The printer in use, chosen by the stored configuration.
 ///
-/// Only the fake printer exists so far. Bluetooth and LAN arrive in milestone
-/// 7 and slot in here without anything above this line changing, which is the
-/// point of the Printer interface.
-final printerProvider = Provider<Printer>(
-  (ref) => FakePrinter(directory: ref.watch(receiptDirectoryProvider)),
-);
+/// Everything above depends on the [Printer] interface, so swapping between
+/// Bluetooth, LAN and the fake printer changes nothing else.
+final printerProvider = Provider<Printer>((ref) {
+  final config = ref.watch(printerConfigProvider).value;
+  return switch (config?.kind ?? PrinterKind.fake) {
+    PrinterKind.bluetooth => BluetoothPrinter(),
+    PrinterKind.lan => LanPrinter(),
+    PrinterKind.fake =>
+      FakePrinter(directory: ref.watch(receiptDirectoryProvider)),
+  };
+});
+
+/// Printers already paired with this phone. Bluetooth only.
+final pairedPrintersProvider =
+    FutureProvider<List<PairedPrinter>>((ref) => BluetoothPrinter.pairedPrinters());
 
 /// Printing. One instance, so its queue really does serialise every job.
 final printServiceProvider = Provider<PrintService>(

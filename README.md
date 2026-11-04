@@ -227,12 +227,43 @@ different key. Keep it off the device running the till.
 
 ## Printer troubleshooting
 
-> **Not written yet.** Printing is milestone 6 and 7. This section will cover
-> Bluetooth pairing, LAN discovery, the reconnect behaviour and what to do when
-> a job fails, once there is something to troubleshoot.
->
-> See [HARDWARE_TEST.md](HARDWARE_TEST.md) for the real-hardware checklist, also
-> pending.
+Settings → Printer has three connection choices: **Bluetooth**, **Wi-Fi (LAN)**
+and **Save to a file**. The last one writes receipts as images instead of
+printing, which is how to work without a printer and how to diagnose one.
+
+**The test page is the first thing to try.** It prints Telugu, the ₹ sign and a
+full-width ruler. If the Telugu is boxes, the bitmap path is broken. If the
+ruler wraps or is cut off, the paper width is wrong.
+
+| Symptom | Cause and fix |
+| --- | --- |
+| Paper comes out blank, printer whirrs | Turn on **Older printer mode (ESC \*)**. Some printers do not understand `GS v 0`. |
+| Garbled dots or diagonal streaks | Same: ESC * mode. |
+| Ruler wraps to two lines | Width set too wide. Switch 80 mm → 58 mm. |
+| Ruler stops short of the edge | Width set too narrow. |
+| Telugu is boxes, English is fine | A real bug. The receipt should be an image, with no printer fonts involved. |
+| No paired printers listed | Bluetooth off, or permission denied. Android Settings → Apps → Billing → Permissions → Nearby devices. |
+| "refused the connection" (LAN) | Printer on but not listening on 9100, or busy with another device. |
+| "same Wi-Fi" message | Wrong network or wrong IP. |
+| "accepted the connection but stopped responding" | Usually a paper jam or an open cover. |
+| App says sent, nothing printed | Out of paper, cover open or jammed. See below. |
+
+**The app cannot tell whether paper came out.** ESC/POS over Bluetooth or port
+9100 has no acknowledgement, so out of paper, cover open and jammed all look
+exactly like success. "Test page sent" means the printer accepted the bytes and
+nothing more.
+
+**When a print fails, the bill is already saved.** It keeps its number, and the
+failure offers a retry. You can also carry on and reprint later from Bills:
+nothing is lost and the next sale is never blocked.
+
+**To work out whether it is the app or the printer**, switch to **Save to a
+file**. Each job writes a `.png` of what the app tried to print and a `.bin` of
+the exact bytes it sent, both in the app's documents directory. If the PNG
+looks right, the app is fine and the problem is the printer or its settings.
+
+See [HARDWARE_TEST.md](HARDWARE_TEST.md) for the full checklist against real
+hardware. Bluetooth has never been run against a real printer.
 
 ## Backup and restore
 
@@ -251,7 +282,7 @@ different key. Keep it off the device running the till.
 | --- | --- |
 | [PLAN.md](PLAN.md) | Architecture, 11 milestones, decisions made without asking, package substitutions |
 | [CA_REVIEW.md](CA_REVIEW.md) | What the restaurant's CA must confirm, and where the software is most likely wrong |
-| HARDWARE_TEST.md | Real-printer checklist. Pending milestone 7. |
+| [HARDWARE_TEST.md](HARDWARE_TEST.md) | Real-printer checklist: everything I could not test |
 
 ## Rules this codebase does not break
 

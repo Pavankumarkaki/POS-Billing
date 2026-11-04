@@ -13,6 +13,7 @@ import '../../providers.dart';
 import '../../theme/app_theme.dart';
 import '../billing/billing_screen.dart';
 import '../menu/menu_screen.dart';
+import '../settings/printer_settings_screen.dart';
 
 /// A place the shell can show, and who may go there.
 enum Destination {
@@ -70,10 +71,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           title: 'Reports',
           note: 'Day, week and month reports arrive in milestone 9.',
         ),
-      Destination.settings => const _Placeholder(
-          title: 'Settings',
-          note: 'Printer and tax settings arrive alongside milestone 7.',
-        ),
+      Destination.settings => const PrinterSettingsScreen(),
     };
 
     if (isTablet(context)) {

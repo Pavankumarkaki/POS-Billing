@@ -1,4 +1,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Bluetooth Classic (SPP) for the thermal printer.
+         Android 12 (API 31) and later: BLUETOOTH_CONNECT, requested at
+         runtime. "neverForLocation" tells Android we are not deriving
+         location from Bluetooth, which avoids asking for location too.
+         Android 11 and earlier: the legacy BLUETOOTH permission, capped so it
+         is not requested on newer devices that do not use it. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- LAN printing over raw TCP on port 9100. Not used for anything else:
+         the app has no server, no analytics and no cloud dependency. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- The printer is optional: the app must install on a device without
+         Bluetooth hardware, since billing works without printing. -->
+    <uses-feature android:name="android.hardware.bluetooth"
+        android:required="false" />
+
     <application
         android:label="restaurant_pos"
         android:name="${applicationName}"
