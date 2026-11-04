@@ -384,31 +384,111 @@ void main() {
       expect(after, isNot(contains(fourth.invoiceNo.formatted)));
     });
 
-    test('the replaced database is kept aside, not deleted', () async {
+    test('the replaced database is kept aside, whole, not deleted', () async {
+      // This test used to check only that ONE lost bill was in the kept copy,
+      // and passed while the copy was missing most of them: the write-ahead
+      // log was being deleted rather than moved with its database, so the
+      // safety copy held 6 of 10 bills on a real device. Asserting the exact
+      // count is what catches that, so the count is what is asserted.
       final f = await openFixture();
       await sell(f);
       final into = Directory(p.join(f.dir.path, 'out'));
       final done = await f.service().backupTo(into) as BackupDone;
-      final lost = await sell(f);
+
+      // The bug only shows when the write-ahead log still holds data at the
+      // moment of the swap, which is what a force-stop or a crash leaves
+      // behind. Closing the database first checkpoints the log into the main
+      // file and hides it completely, so this test must not close cleanly:
+      // auto-checkpointing is turned off, the bills are taken, and the swap
+      // happens with the connection still open, the way it does on a phone
+      // whose app was killed.
+      await f.db.customStatement('PRAGMA wal_autocheckpoint = 0');
+
+      final after = <String>[];
+      for (var i = 0; i < 9; i++) {
+        after.add((await sell(f)).invoiceNo.formatted);
+      }
+      final before = await invoiceNumbers(f.db);
+      expect(before, hasLength(10));
+
+      final walBytes = File('${f.file.path}-wal').lengthSync();
+      expect(
+        walBytes,
+        greaterThan(0),
+        reason: 'without a non-empty write-ahead log this test proves nothing',
+      );
 
       await f.service().stageRestore(done.file);
-      await f.db.close();
       adoptStagedRestore(f.dir);
       f.db = PosDatabase(NativeDatabase(f.file));
 
       final aside = f.dir
           .listSync()
           .whereType<File>()
-          .where((e) => p.basename(e.path).startsWith('pos.replaced-'))
+          .where((e) =>
+              p.basename(e.path).startsWith('pos.replaced-') &&
+              e.path.endsWith('.sqlite'))
           .toList();
       expect(aside, hasLength(1), reason: 'a wrong restore must be recoverable');
 
       final old = sqlite3.open(aside.single.path, mode: OpenMode.readOnly);
       addTearDown(old.close);
       final numbers = old
-          .select('SELECT invoice_no FROM bill')
-          .map((r) => r['invoice_no'] as String);
-      expect(numbers, contains(lost.invoiceNo.formatted));
+          .select('SELECT invoice_no FROM bill ORDER BY device_seq')
+          .map((r) => r['invoice_no'] as String)
+          .toList();
+
+      expect(
+        numbers,
+        before,
+        reason: 'every bill, not just the ones that happened to be '
+            'checkpointed out of the write-ahead log',
+      );
+      for (final n in after) {
+        expect(numbers, contains(n));
+      }
+    });
+
+    test('the kept-aside database can actually be opened and billed from',
+        () async {
+      // Undoing a wrong restore means opening that file as the database
+      // again, so it has to be a working database and not just bytes.
+      final f = await openFixture();
+      await sell(f);
+      final into = Directory(p.join(f.dir.path, 'out'));
+      final done = await f.service().backupTo(into) as BackupDone;
+      await sell(f);
+      await sell(f);
+
+      await f.service().stageRestore(done.file);
+      await f.db.close();
+      adoptStagedRestore(f.dir);
+
+      final aside = f.dir
+          .listSync()
+          .whereType<File>()
+          .firstWhere((e) =>
+              p.basename(e.path).startsWith('pos.replaced-') &&
+              e.path.endsWith('.sqlite'));
+
+      // Put it back, the way undoing a restore would.
+      f.file.deleteSync();
+      for (final suffix in const ['-wal', '-shm']) {
+        final s = File('${f.file.path}$suffix');
+        if (s.existsSync()) s.deleteSync();
+      }
+      aside.renameSync(f.file.path);
+      for (final suffix in const ['-wal', '-shm']) {
+        final s = File('${aside.path}$suffix');
+        if (s.existsSync()) s.renameSync('${f.file.path}$suffix');
+      }
+
+      f.db = PosDatabase(NativeDatabase(f.file));
+      expect(await invoiceNumbers(f.db), hasLength(3));
+
+      // And it still bills, with the sequence carrying on.
+      final next = await sell(f);
+      expect(next.invoiceNo.formatted, 'A/2627/000004');
     });
 
     test('the old write-ahead log does not come back with it', () async {

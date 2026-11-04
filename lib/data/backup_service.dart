@@ -423,15 +423,26 @@ StagedRestoreOutcome adoptStagedRestore(Directory databaseDir) {
           .replaceAll(':', '')
           .split('.')
           .first;
-      live.renameSync(p.join(databaseDir.path, 'pos.replaced-$stamp.sqlite'));
-    }
+      final aside = p.join(databaseDir.path, 'pos.replaced-$stamp.sqlite');
+      live.renameSync(aside);
 
-    // The WAL and shared-memory files belong to the database just moved away.
-    // Leaving them beside the restored file is how you get a database that
-    // opens and then shows the old data back again.
-    for (final suffix in const ['-wal', '-shm']) {
-      final f = File(p.join(databaseDir.path, '$kDatabaseFileName$suffix'));
-      if (f.existsSync()) f.deleteSync();
+      // The write-ahead log moves WITH the database it belongs to, and is not
+      // deleted. Two reasons, and the first one cost a restore on a test
+      // device before it was caught:
+      //
+      //   1. Most of the recent bills live in the WAL, not in the main file.
+      //      Deleting it left the kept-aside copy holding 6 bills out of 10,
+      //      which makes "the database being replaced is kept, so a mistake
+      //      can be undone" a false promise. SQLite finds a WAL by its
+      //      database's file name, so renaming it alongside keeps the copy
+      //      whole and openable.
+      //   2. It still has to stop being beside the restored file. A stale WAL
+      //      left there is how a restored database opens and then shows the
+      //      old data straight back.
+      for (final suffix in const ['-wal', '-shm']) {
+        final f = File(p.join(databaseDir.path, '$kDatabaseFileName$suffix'));
+        if (f.existsSync()) f.renameSync('$aside$suffix');
+      }
     }
 
     staged.renameSync(live.path);

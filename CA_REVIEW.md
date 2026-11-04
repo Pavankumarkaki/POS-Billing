@@ -213,6 +213,13 @@ to be wrong:
 
 So nobody assumes otherwise:
 
+- **Should the document count include cancelled documents?** The export
+  currently counts **paid** documents by type, and shows cancelled ones on a
+  separate line beneath. On the test device that reads as 8 bills of supply
+  plus 1 cancelled, from 9 numbers issued. The alternative reading is that 9
+  documents were issued and one was later cancelled. Both are defensible; the
+  numbers are all there either way, but which one they want as "the count"
+  changes the top line.
 - No GSTR filing, no return preparation, no e-invoicing, no e-way bills.
 - No integration with Swiggy or Zomato. Aggregator orders are keyed in by hand.
 - No TDS, TCS or reverse-charge handling.

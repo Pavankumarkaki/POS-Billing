@@ -936,7 +936,12 @@ class _Toggle extends StatelessWidget {
               ),
             ),
             value: value,
-            activeThumbColor: AppColors.primary,
+            // A white thumb on a dark track, the same as the printer screen's
+            // toggle. The default pale track with a dark thumb reads as
+            // ambiguous on the device: on and off are told apart only by which
+            // side the thumb is on.
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppColors.primary,
             onChanged: onChanged,
           ),
           if (help != null)

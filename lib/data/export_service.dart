@@ -321,8 +321,13 @@ ExportSheet _docCountsSheet(SalesReport r) {
     ])
     ..add(const [
       ExportText('Note'),
-      ExportText('A cancelled bill keeps its number and is counted above. '
-          'Numbers are never reused and no bill is ever deleted.'),
+      // Says what the numbers actually are. The counts come from paid bills
+      // only, the same as every other figure in this export, so claiming the
+      // cancelled ones were included would be false: the device that prompted
+      // this had 8 above and 1 cancelled, not 9 above.
+      ExportText('The counts above are paid bills only. A cancelled bill '
+          'keeps its number, which is never reused, and is counted on the '
+          'line below instead. No bill is ever deleted.'),
     ]);
 
   return ExportSheet(name: 'Document counts', rows: rows);

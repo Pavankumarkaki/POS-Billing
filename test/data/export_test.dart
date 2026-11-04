@@ -468,6 +468,26 @@ void main() {
       expect(rowLabelled(s, 'Credit note')[1], '0');
     });
 
+    test('the type counts leave cancelled bills out, and the separate line '
+        'holds them', () {
+      // The export on the device showed 8 bills of supply and 1 cancelled,
+      // from 9 documents. Whatever the note says has to match that.
+      final s = sheetNamed(
+        buildSheets(
+          header: header(),
+          report: report(
+            docCounts: const {DocType.billOfSupply: 8},
+            cancelledCount: 1,
+          ),
+          bills: const [],
+        ),
+        'Document counts',
+      );
+
+      expect(rowLabelled(s, 'Bill of supply')[1], '8');
+      expect(rowLabelled(s, 'Of which cancelled')[1], '1');
+    });
+
     test('cancelled bills are counted and the numbering rule is stated', () {
       final s = sheetNamed(
         buildSheets(
@@ -481,7 +501,13 @@ void main() {
       expect(rowLabelled(s, 'Of which cancelled')[1], '3');
       final text = cells(s).expand((r) => r).join(' ');
       expect(text, contains('keeps its number'));
-      expect(text, contains('never'));
+      expect(text, contains('never reused'));
+      expect(
+        text,
+        contains('paid bills only'),
+        reason: 'the note must not claim the cancelled ones are in the '
+            'counts above, because they are not',
+      );
     });
   });
 
