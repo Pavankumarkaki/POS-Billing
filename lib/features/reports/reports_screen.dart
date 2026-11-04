@@ -121,14 +121,17 @@ class ReportsScreen extends ConsumerWidget {
             if (report.billCount == 0 && report.cancelledCount == 0)
               const _NothingYet()
             else ...[
-              _Card(
-                title: switch (period) {
-                  ReportPeriod.today => 'Sales today',
-                  ReportPeriod.week => 'Sales by day this week',
-                  ReportPeriod.month => 'Sales by day this month',
-                },
-                child: _BarChart(points: report.byDay),
-              ),
+              // A one-day period draws a single full-width bar, which says
+              // nothing the Total sales tile has not already said. The chart
+              // is for comparing days, so it appears when there are days to
+              // compare.
+              if (report.byDay.length > 1)
+                _Card(
+                  title: period == ReportPeriod.week
+                      ? 'Sales by day this week'
+                      : 'Sales by day this month',
+                  child: _BarChart(points: report.byDay),
+                ),
               _Card(
                 title: 'How customers paid',
                 child: _ModeBars(modes: report.byMode, total: report.total),

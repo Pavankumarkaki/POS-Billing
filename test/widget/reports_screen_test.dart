@@ -249,7 +249,10 @@ void main() {
 
       await tester.tap(find.byKey(const Key('period-today')));
       await tester.pumpAndSettle();
-      expect(find.text('Sales today'), findsOneWidget);
+      // One day is one bar, which says nothing the Total sales tile has not.
+      expect(find.text('Sales by day this week'), findsNothing);
+      expect(find.text('Sales by day this month'), findsNothing);
+      expect(find.text('Total sales'), findsOneWidget);
     });
   });
 
