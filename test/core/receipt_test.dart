@@ -125,7 +125,7 @@ List<String> textOf(ReceiptDoc doc) => [
               data,
               ?caption,
             ],
-          DividerBlock() || SpacerBlock() => <String>[],
+          DividerBlock() || SpacerBlock() || RulerBlock() => <String>[],
         },
     ];
 

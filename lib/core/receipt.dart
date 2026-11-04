@@ -99,6 +99,17 @@ class SpacerBlock extends ReceiptBlock {
   final int lines;
 }
 
+/// A ruler spanning the full printable width, with ticks.
+///
+/// Drawn rather than typed out as characters: a row of `|....|....` is
+/// whatever width the font makes it, which on the first test page fell well
+/// short of the paper and made a correctly configured printer look wrong.
+/// This is laid out to the exact content width, so if it does not reach both
+/// edges the configured width really is wrong.
+class RulerBlock extends ReceiptBlock {
+  const RulerBlock();
+}
+
 /// A QR code, for UPI payment.
 class QrBlock extends ReceiptBlock {
   const QrBlock(this.data, {this.caption});

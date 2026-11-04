@@ -265,6 +265,21 @@ looks right, the app is fine and the problem is the printer or its settings.
 See [HARDWARE_TEST.md](HARDWARE_TEST.md) for the full checklist against real
 hardware. Bluetooth has never been run against a real printer.
 
+### Permissions the APK asks for, and why
+
+Worth knowing, because three of them are not ours and look odd on a till app:
+
+| Permission | Who asks | Why |
+| --- | --- | --- |
+| `BLUETOOTH_CONNECT` | us | Printing over Bluetooth. Requested at runtime. |
+| `BLUETOOTH`, `BLUETOOTH_ADMIN` | us | The same, on Android 11 and earlier. Capped at SDK 30. |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | us | LAN printing on port 9100. Nothing leaves the building: there is no server, no analytics and no cloud dependency. |
+| `BLUETOOTH_SCAN` | `print_bluetooth_thermal` | **Declared but never used.** The app lists paired printers only and never scans. |
+| `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE` | `workmanager` | For the nightly backup in milestone 10. |
+
+`INTERNET` is the one to be able to explain: it is there so the app can open a
+TCP socket to a printer on the restaurant's own Wi-Fi, and for nothing else.
+
 ## Backup and restore
 
 > **Not written yet.** Backup is milestone 10. It will cover the nightly

@@ -139,6 +139,7 @@ _Item _layout(ReceiptBlock block, ReceiptMetrics m) => switch (block) {
       DividerBlock() => _DividerItem(m),
       SpacerBlock(:final lines) => _SpacerItem(lines * m.normalSize * 0.5),
       QrBlock() => _QrItem(block, m),
+      RulerBlock() => _RulerItem(m),
     };
 
 double _sizeFor(TextScale scale, ReceiptMetrics m) => switch (scale) {
@@ -326,6 +327,46 @@ class _DividerItem implements _Item {
       ),
       ui.Paint()..color = const ui.Color(0xFF000000),
     );
+  }
+}
+
+/// A full-width ruler with a tick every 10% and a taller one at the halfway
+/// mark, so a mis-set width is obvious at a glance.
+class _RulerItem implements _Item {
+  _RulerItem(this.m);
+  final ReceiptMetrics m;
+
+  @override
+  double get height => 16 * m.scale;
+
+  @override
+  void paint(ui.Canvas canvas, double y, ReceiptMetrics metrics) {
+    final paint = ui.Paint()..color = const ui.Color(0xFF000000);
+    final baseline = y + 12 * metrics.scale;
+    final thickness = 1.5 * metrics.scale;
+
+    // The baseline runs the exact printable width, edge to edge.
+    canvas.drawRect(
+      ui.Rect.fromLTWH(
+        metrics.margin,
+        baseline,
+        metrics.contentWidth,
+        thickness,
+      ),
+      paint,
+    );
+
+    for (var i = 0; i <= 10; i++) {
+      final tall = i == 0 || i == 5 || i == 10;
+      final tickHeight = (tall ? 12 : 6) * metrics.scale;
+      final x = metrics.margin +
+          metrics.contentWidth * (i / 10) -
+          (i == 10 ? thickness : 0);
+      canvas.drawRect(
+        ui.Rect.fromLTWH(x, baseline - tickHeight, thickness, tickHeight),
+        paint,
+      );
+    }
   }
 }
 

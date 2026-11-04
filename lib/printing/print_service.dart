@@ -96,7 +96,6 @@ class PrintService {
             const TextLine('మజ్జిగ · పెసరట్టు', align: Align.centre),
             const SpacerBlock(),
             const TwoColumn('Rupee sign', '₹1,234.50'),
-            const TwoColumn('Width', ''),
             TwoColumn('Dots across', '${config.widthPx}'),
             TwoColumn('Raster', config.useEscStar ? 'ESC *' : 'GS v 0'),
             TwoColumn('Auto cut', config.autoCut ? 'Yes' : 'No'),
@@ -108,13 +107,7 @@ class PrintService {
               scale: TextScale.small,
             ),
             const SpacerBlock(),
-            // A full-width row of characters: if it wraps or is clipped, the
-            // configured width does not match the actual head.
-            const TextLine(
-              '|....|....|....|....|....|....|....|....|....|....|',
-              align: Align.centre,
-              scale: TextScale.small,
-            ),
+            const RulerBlock(),
             const SpacerBlock(2),
           ],
         );
