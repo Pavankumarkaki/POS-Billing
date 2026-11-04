@@ -398,4 +398,76 @@ void main() {
       expect(DocType.values, contains(DocType.creditNote));
     });
   });
+
+  group('the invoice numbering constraint spans the financial year', () {
+    test('the same device_seq is allowed in a different year', () async {
+      final f = await Fixture.create();
+      addTearDown(f.close);
+
+      Future<void> insert(FinancialYear fy, String id, String no) =>
+          f.db.into(f.db.bills).insert(BillsCompanion.insert(
+                id: id,
+                deviceId: kDeviceId,
+                deviceSeq: 1,
+                invoiceNo: no,
+                fy: fy,
+                businessDate: BusinessDate(fy.startYear, 6, 1),
+                docType: DocType.invoice,
+                createdAt: DateTime(fy.startYear, 6, 1, 13),
+                status: BillStatus.paid,
+                orderType: OrderType.dine,
+                subtotal: const Paise(24000),
+                discount: Paise.zero,
+                taxable: const Paise(24000),
+                cgst: const Paise(600),
+                sgst: const Paise(600),
+                roundOff: Paise.zero,
+                total: const Paise(25200),
+                createdBy: kOwnerId,
+              ));
+
+      await insert(const FinancialYear(2026), 'bill-a', 'A/2627/000001');
+
+      // The sequence restarts each April, so seq 1 recurs. Under the brief's
+      // literal UNIQUE(device_id, device_seq) this threw, and the app would
+      // have refused its first bill of the new year on 1 April.
+      await insert(const FinancialYear(2027), 'bill-b', 'A/2728/000001');
+
+      expect(await f.db.select(f.db.bills).get(), hasLength(2));
+    });
+
+    test('a genuine duplicate within one year is still refused', () async {
+      final f = await Fixture.create();
+      addTearDown(f.close);
+
+      Future<void> insert(String id, String no) =>
+          f.db.into(f.db.bills).insert(BillsCompanion.insert(
+                id: id,
+                deviceId: kDeviceId,
+                deviceSeq: 1,
+                invoiceNo: no,
+                fy: const FinancialYear(2026),
+                businessDate: const BusinessDate(2026, 6, 1),
+                docType: DocType.invoice,
+                createdAt: DateTime(2026, 6, 1, 13),
+                status: BillStatus.paid,
+                orderType: OrderType.dine,
+                subtotal: const Paise(24000),
+                discount: Paise.zero,
+                taxable: const Paise(24000),
+                cgst: const Paise(600),
+                sgst: const Paise(600),
+                roundOff: Paise.zero,
+                total: const Paise(25200),
+                createdBy: kOwnerId,
+              ));
+
+      await insert('bill-a', 'A/2627/000001');
+      await expectLater(
+        insert('bill-b', 'A/2627/000002'),
+        throwsA(anything),
+        reason: 'same device, same year, same sequence',
+      );
+    });
+  });
 }

@@ -31,7 +31,7 @@ part 'db.g.dart';
 /// Bumped for every schema change, with a migration step to match. Migration
 /// tests walk every version from 1 to here, so this number and the `onUpgrade`
 /// below cannot drift apart unnoticed.
-const int kSchemaVersion = 1;
+const int kSchemaVersion = 2;
 
 /// The file the database lives in, inside the app's own documents directory.
 const String kDatabaseFileName = 'pos.sqlite';
@@ -71,15 +71,27 @@ class PosDatabase extends _$PosDatabase {
           await _createIndexes();
         },
         onUpgrade: (m, from, to) async {
-          // Phase 1 ships schema v1, so nothing can need upgrading yet and this
-          // is unreachable. When v2 arrives its step goes here, keyed on `from`.
-          // Throwing rather than quietly doing nothing means a schemaVersion
-          // raised without a matching migration fails loudly instead of leaving
-          // a database half a version behind its code.
-          throw StateError(
-            'No migration from schema v$from to v$to. '
-            'Add one in PosDatabase.migration.',
-          );
+          for (var v = from; v < to; v++) {
+            switch (v) {
+              case 1:
+                // v1 had UNIQUE(device_id, device_seq), which collides on the
+                // first bill of a new financial year because the sequence
+                // restarts each April. Widened to include fy.
+                //
+                // SQLite cannot alter a constraint, so the table is recreated
+                // and the rows copied. TableMigration with no column changes
+                // does exactly that, keeping every existing bill.
+                await m.alterTable(TableMigration(bills));
+              default:
+                // A schemaVersion raised without a matching step fails loudly
+                // rather than leaving a database half a version behind.
+                throw StateError(
+                  'No migration from schema v$v to v${v + 1}. '
+                  'Add one in PosDatabase.migration.',
+                );
+            }
+          }
+          await _createIndexes();
         },
         beforeOpen: (details) async {
           // Drift does not turn these on for you, and SQLite defaults them off

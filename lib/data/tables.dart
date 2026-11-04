@@ -234,7 +234,17 @@ class Bills extends Table {
   @override
   List<String> get customConstraints => [
         // The backstop against a numbering collision if two writers ever race.
-        'UNIQUE (device_id, device_seq)',
+        //
+        // The financial year is PART OF THIS KEY, and it has to be. The brief
+        // specifies UNIQUE(device_id, device_seq), but it also requires the
+        // sequence to restart at 1 each April. Those two cannot both hold:
+        // the first bill of 2027-28 is device_seq 1, and so was the first
+        // bill of 2026-27, on the same device.
+        //
+        // Without the fy column the app would refuse to write its first bill
+        // of the new financial year, on 1 April, with a constraint error at
+        // the counter. Found by a test that sold across a year boundary.
+        'UNIQUE (device_id, fy, device_seq)',
         // And against the same rendered number appearing twice in a year.
         'UNIQUE (fy, invoice_no)',
       ];

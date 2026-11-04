@@ -138,6 +138,30 @@ not a surprise later.
 `qr_flutter` 4.1.0 (2023) is also stale, but the UPI QR must go on a **1-bit bitmap**, not
 a widget, so I will generate the QR matrix directly rather than depend on it.
 
+### A correction to the brief's data model, found by a test
+
+The brief specifies `UNIQUE(device_id, device_seq)` on `bill`. It also
+requires the sequence to restart at 1 each April. **Those two cannot both
+hold:** the first bill of FY 2027-28 is `device_seq` 1, and so was the first
+bill of FY 2026-27, on the same device.
+
+Implemented literally, the app would have refused to write its first bill of
+the new financial year, on 1 April, with a constraint error at the counter.
+It would have worked perfectly until the day it did not.
+
+Found by a reports test that sold either side of a year boundary. The
+constraint is now `UNIQUE(device_id, fy, device_seq)`, which is what the
+brief's intent requires: unique within a financial year. `UNIQUE(fy,
+invoice_no)` is unchanged.
+
+Schema is therefore **v2**, with a migration that recreates `bill` and keeps
+every row. Tested: a v1 database really does reject the new year, the
+migration preserves bills with their numbers, amounts and cancellation
+details, a duplicate within one year is still refused afterwards, and bill
+lines are not orphaned by the table being recreated.
+
+---
+
 ### Known issues found while building, not yet acted on
 
 Recorded so they are not surprises later.
