@@ -61,6 +61,25 @@ there so a second device can be added later without renumbering.
   invoices? The app currently uses **one series for both**, distinguished by the
   `doc_type` on each bill.
 
+**Sharper now that the tax type can be changed after setup.** It used to be
+fixed at first-run, so in practice a financial year held one document type. The
+owner can now switch, which is what an outlet crossing the registration
+threshold in, say, November has to do. From that day the same series carries
+bills of supply up to the switch and tax invoices after it, with no gap and no
+restart. Verified on a device: numbering continues across the change rather
+than repeating a number already on a printed bill.
+
+That is the behaviour I believe is right, and it is the point on which I would
+most like to be told otherwise, because it is cheap to change now and expensive
+once a year of bills exists.
+
+**Ask them as well:**
+- When an outlet registers mid-year, should the tax invoices start a **new
+  series**, or continue the existing one as the app does?
+- The change is recorded with its effective date in `tax_profile_history`, so
+  the split can be reported either way. Do they want that history in the
+  accountant's export? It is not in it today.
+
 **If the answer differs:** the device letter is set during first-run setup. A
 separate series per document type would be a schema and code change, so flag it
 before billing starts.

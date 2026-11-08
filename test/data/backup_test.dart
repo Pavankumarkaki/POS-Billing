@@ -547,6 +547,42 @@ void main() {
       expect(f.service().hasStagedRestore(), isFalse);
     });
 
+    test('no stray write-ahead files are left beside a staged restore',
+        () async {
+      // Inspecting the staged file opens it, and opening a WAL-mode database
+      // creates a -wal and -shm even read-only. Left behind, they would sit
+      // next to the NEXT staged restore and belong to a different database.
+      // Seen on the emulator as pos.sqlite.restore-wal surviving a completed
+      // restore.
+      //
+      // The source has to be a WAL-mode file to reproduce it: a backup made
+      // with VACUUM INTO is not one, so staging a backup leaves nothing and
+      // proves nothing. A copy of a live pos.sqlite, which is what someone
+      // restoring a file pulled off a phone would have, is WAL.
+      final f = await openFixture();
+      await sell(f);
+
+      final walCopy = File(p.join(f.dir.path, 'from-a-phone.sqlite'));
+      f.file.copySync(walCopy.path);
+      expect(
+        f.service().inspect(walCopy),
+        isA<RestoreUsable>(),
+        reason: 'the test needs a usable WAL-mode source',
+      );
+
+      expect(await f.service().stageRestore(walCopy), isNull);
+      await f.db.close();
+      adoptStagedRestore(f.dir);
+      f.db = PosDatabase(NativeDatabase(f.file));
+
+      final leftovers = f.dir
+          .listSync()
+          .map((e) => p.basename(e.path))
+          .where((n) => n.startsWith('$kStagedRestoreName-'))
+          .toList();
+      expect(leftovers, isEmpty, reason: 'found $leftovers');
+    });
+
     test('nothing staged means nothing happens', () async {
       final f = await openFixture();
       final outcome = adoptStagedRestore(f.dir);

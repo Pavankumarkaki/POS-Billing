@@ -418,6 +418,37 @@ Three choices in there worth knowing:
   the six-digit code. That is item 1 of [CA_REVIEW.md](CA_REVIEW.md), and the
   sheet says so rather than presenting a default as settled.
 
+## Changing the tax type, FSSAI number or GSTIN
+
+Settings → Bill details. Owner only, like the rest of that tab.
+
+These were set-once until recently, which meant a mistyped FSSAI number cost a
+reinstall, and a reinstall costs the data and the default backup folder with
+it. The realistic reason to change the tax type is the one the turnover
+warning on the reports screen is for: an outlet crossing the ₹20 lakh
+registration threshold part way through a year.
+
+**A tax type change is dated.** `outlet.tax_mode` is only today's answer, so
+every change also writes `tax_profile_history` with the business date it took
+effect, and `OutletRepository.taxModeOn` reads it back. That is how a bill
+from last October stays explicable after the outlet registers in November.
+Two changes on the same day replace rather than accumulate, because that table
+answers "which type applied on this date" and that has to be a single value;
+both changes stay in the audit log.
+
+**Bills already issued never move.** Every bill stores its own amounts, tax
+splits and document type at the moment it was rung up, so this is safe by
+construction rather than by care. The confirmation dialog says so, because it
+is the thing an owner would reasonably worry about.
+
+**Going unregistered clears the GSTIN**, because the receipt decides whether to
+print one purely from whether one is stored, and an unregistered outlet
+printing a GSTIN would be wrong. Composition keeps it: a composition dealer is
+registered and their bill of supply carries it.
+
+Still set-once: the outlet name, address and phone. They print on every bill
+too, so changing premises currently needs a developer. Worth doing next.
+
 ## The documents
 
 | File | What it is |
@@ -441,8 +472,22 @@ tested. Checked against the code on 2026-11-04, not from memory.
 | 6 | The bill is saved before printing; a printer failure never loses a bill, changes its number or blocks the next sale | `features/billing/payment_sheet.dart` — printing takes a bill id, which exists only after the commit | `test/widget/billing_screen_test.dart` (Next bill is enabled after a print failure) |
 | 7 | Invoice numbers unique within a financial year, at most 16 characters, `A/2627/000123` | `core/invoice_no.dart`, plus `UNIQUE (device_id, fy, device_seq)` and `UNIQUE (fy, invoice_no)` in `data/tables.dart` | `test/core/invoice_no_test.dart`, `test/data/migration_test.dart` |
 | 8 | The audit log is append-only | `data/` — there is no `update` or `delete` on `audit_log` anywhere in `lib/` | `test/data/immutability_test.dart` |
-| 9 | Every bill shows the 14-digit FSSAI number in every tax mode, and billing is blocked until a valid one is saved | `bill_repository.dart` checks it **inside** the transaction against the stored row, not against what the UI believes | `test/data/sale_transaction_test.dart`, `test/data/setup_test.dart`, `test/core/receipt_test.dart` |
+| 9 | Every bill shows the 14-digit FSSAI number in every tax mode, and billing is blocked until a valid one is saved | `bill_repository.dart` checks it **inside** the transaction against the stored row, not against what the UI believes. Settings can now edit it, and `outlet_repository.dart` applies the same rule there: a number that setup would have refused cannot be saved later either, and it cannot be blanked | `test/data/sale_transaction_test.dart`, `test/data/setup_test.dart`, `test/data/outlet_test.dart`, `test/core/receipt_test.dart` |
 | 10 | Everything works with no internet | No HTTP client, no analytics, no cloud dependency. The only socket in `lib/` is `printing/lan_printer.dart`, which connects to a printer on the restaurant's own Wi-Fi | Run through on an emulator in airplane mode on 2026-11-04: sign in, bill, save, print, bills list, reports, backup and export all worked, with no network errors in the device log |
+
+### Seeding an emulator
+
+`test/seed_device_test.dart` builds a database with an outlet, an owner and a
+menu item, using the app's own repositories. It is skipped in a normal run:
+
+```bash
+flutter test test/seed_device_test.dart --run-skipped
+```
+
+Then push `build/seed.sqlite` onto the device as `pos.sqlite.restore` and
+restart the app, which lets the restore path install it. Much faster and less
+error-prone than driving first-run setup through `adb input tap`, and the
+result is a database the app really would have written.
 
 ### What the tests do not cover
 

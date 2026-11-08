@@ -243,6 +243,7 @@ class BackupService {
 
     try {
       final staged = File(p.join(_databaseDir.path, kStagedRestoreName));
+      _clearSidecars(staged);
       if (staged.existsSync()) staged.deleteSync();
       file.copySync(staged.path);
 
@@ -389,6 +390,21 @@ RestoreCheck _inspect(File file) {
   }
 }
 
+/// Removes the `-wal` and `-shm` that sit beside [file].
+///
+/// Opening a database read-only still creates them, so simply inspecting a
+/// staged restore leaves a pair behind.
+void _clearSidecars(File file) {
+  for (final suffix in const ['-wal', '-shm']) {
+    final f = File('${file.path}$suffix');
+    try {
+      if (f.existsSync()) f.deleteSync();
+    } on FileSystemException {
+      // Nothing worth failing a restore over.
+    }
+  }
+}
+
 /// Applies a staged restore, if there is one. Call before opening the database.
 ///
 /// The database being replaced is renamed aside rather than deleted, so a
@@ -407,6 +423,7 @@ StagedRestoreOutcome adoptStagedRestore(Directory databaseDir) {
     // loop at every start, and can still be looked at.
     try {
       staged.renameSync('${staged.path}.rejected');
+      _clearSidecars(staged);
     } on Object {
       // If it will not even rename, leave it; the message is what matters.
     }
@@ -446,6 +463,13 @@ StagedRestoreOutcome adoptStagedRestore(Directory databaseDir) {
     }
 
     staged.renameSync(live.path);
+
+    // Inspecting the staged file opened it, which leaves a -wal and -shm
+    // beside it. Harmless now, but a stale pair sitting next to the NEXT
+    // staged restore would belong to a different database, and SQLite would
+    // read the two together.
+    _clearSidecars(staged);
+
     return StagedRestoreOutcome.done((check as RestoreUsable).bills);
   } on Object catch (e) {
     return StagedRestoreOutcome.failed('The restore could not be completed: $e');

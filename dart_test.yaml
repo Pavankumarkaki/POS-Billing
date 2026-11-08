@@ -1,0 +1,13 @@
+# test/seed_device_test.dart is not a test: it builds a seeded database file
+# to push onto an emulator, so first-run setup does not have to be driven
+# through adb taps. Skipped so a normal run neither executes it nor writes
+# build/seed.sqlite.
+#
+# Run it deliberately with:
+#   flutter test test/seed_device_test.dart --run-skipped
+#
+# Not `--tags seed`: that selects which tags to run and does not override a
+# skip, so the file stays skipped. Checked, rather than assumed.
+tags:
+  seed:
+    skip: "a device-seeding tool, not a test: run it with --run-skipped"
