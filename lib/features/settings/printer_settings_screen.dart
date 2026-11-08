@@ -19,6 +19,7 @@ import '../../providers.dart';
 import '../../theme/app_theme.dart';
 import 'backup_screen.dart';
 import 'bill_details_section.dart';
+import 'restaurant_details_section.dart';
 
 class PrinterSettingsScreen extends ConsumerStatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -231,6 +232,7 @@ class _PrinterSettingsScreenState
                     ],
                   ),
 
+                  const RestaurantDetailsSection(),
                   const BillDetailsSection(),
 
                   _Section(

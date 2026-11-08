@@ -532,6 +532,181 @@ void main() {
     });
   });
 
+  group('the name, address and phone', () {
+    test('save, and reach the bills printed after', () async {
+      final changed = await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Annapurna Mess & Tiffins',
+          address: 'Shop 4, Main Road, Guntur',
+          phone: '9888877777',
+        ),
+        byUserId: ownerId,
+      );
+
+      expect(changed, isTrue);
+      final o = await outlet();
+      expect(o.name, 'Annapurna Mess & Tiffins');
+      expect(o.address, 'Shop 4, Main Road, Guntur');
+      expect(o.phone, '9888877777');
+    });
+
+    test('are trimmed', () async {
+      await repo.updateIdentity(
+        const OutletIdentity(
+          name: '  Annapurna Mess  ',
+          address: '  Main Road  ',
+          phone: '  9000000000  ',
+        ),
+        byUserId: ownerId,
+      );
+      final o = await outlet();
+      expect(o.name, 'Annapurna Mess');
+      expect(o.address, 'Main Road');
+    });
+
+    test('saving the same values reports no change', () async {
+      final changed = await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Annapurna Mess',
+          address: 'Main Road',
+          phone: '9000000000',
+        ),
+        byUserId: ownerId,
+      );
+      expect(changed, isFalse);
+    });
+
+    test('an empty name, address or phone is refused', () async {
+      for (final bad in const [
+        OutletIdentity(name: '', address: 'Main Road', phone: '9000000000'),
+        OutletIdentity(name: 'A', address: '  ', phone: '9000000000'),
+        OutletIdentity(name: 'A', address: 'Main Road', phone: ''),
+      ]) {
+        await expectLater(
+          repo.updateIdentity(bad, byUserId: ownerId),
+          throwsA(isA<OutletError>()),
+        );
+      }
+      expect((await outlet()).name, 'Annapurna Mess');
+    });
+
+    test('a name longer than the column allows is refused with a sentence',
+        () async {
+      // Without the check this fails inside drift with a constraint error,
+      // which the screen would show to the owner as it is.
+      await expectLater(
+        repo.updateIdentity(
+          OutletIdentity(
+            name: 'A' * (kOutletNameMaxLength + 1),
+            address: 'Main Road',
+            phone: '9000000000',
+          ),
+          byUserId: ownerId,
+        ),
+        throwsA(
+          isA<OutletError>().having(
+            (e) => e.message,
+            'message',
+            contains('too long'),
+          ),
+        ),
+      );
+    });
+
+    test('a name of exactly the limit is accepted', () async {
+      final changed = await repo.updateIdentity(
+        OutletIdentity(
+          name: 'A' * kOutletNameMaxLength,
+          address: 'Main Road',
+          phone: '9000000000',
+        ),
+        byUserId: ownerId,
+      );
+      expect(changed, isTrue);
+    });
+
+    test('staff cannot', () async {
+      await expectLater(
+        repo.updateIdentity(
+          const OutletIdentity(
+            name: 'Not Annapurna',
+            address: 'Main Road',
+            phone: '9000000000',
+          ),
+          byUserId: staffId,
+        ),
+        throwsA(isA<OutletError>()),
+      );
+      expect((await outlet()).name, 'Annapurna Mess');
+    });
+
+    test('the change is audited with before and after', () async {
+      await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Annapurna Mess & Tiffins',
+          address: 'Main Road',
+          phone: '9000000000',
+        ),
+        byUserId: ownerId,
+      );
+
+      final entry = (await db.select(db.auditLog).get())
+          .lastWhere((e) => e.action == AuditAction.settingChanged);
+      expect(entry.entity, AuditEntity.outlet);
+      expect(entry.before, contains('Annapurna Mess'));
+      expect(entry.after, contains('Tiffins'));
+    });
+
+    test('it does not touch the tax profile history', () async {
+      await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Annapurna Mess & Tiffins',
+          address: 'Main Road',
+          phone: '9000000000',
+        ),
+        byUserId: ownerId,
+      );
+      expect(await repo.taxProfileHistory(), hasLength(1));
+    });
+
+    test('currentIdentity reflects what was saved', () async {
+      await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Annapurna Mess & Tiffins',
+          address: 'Shop 4',
+          phone: '9888877777',
+        ),
+        byUserId: ownerId,
+      );
+      final now = await repo.currentIdentity();
+      expect(now!.name, 'Annapurna Mess & Tiffins');
+      expect(now.address, 'Shop 4');
+      expect(now.phone, '9888877777');
+    });
+
+    test('a bill printed before the rename still reprints under the old '
+        'name', () async {
+      // The reason the bill snapshots its own header. Covered end to end in
+      // test/printing/reprint_header_test.dart; this pins the stored value.
+      final bill = await sell();
+      await repo.updateIdentity(
+        const OutletIdentity(
+          name: 'Completely Different Mess',
+          address: 'Elsewhere',
+          phone: '9111111111',
+        ),
+        byUserId: ownerId,
+      );
+
+      final row = await (db.select(db.bills)
+            ..where((b) => b.id.equals(bill.id)))
+          .getSingle();
+      expect(row.outletName, 'Annapurna Mess');
+      expect(row.outletAddress, 'Main Road');
+      expect(row.outletPhone, '9000000000');
+    });
+  });
+
   group('reading the current details', () {
     test('current() reflects what was saved', () async {
       await repo.updateBillDetails(

@@ -33,6 +33,10 @@ import 'bill_repository.dart' show isValidFssai;
 import 'db.dart';
 import 'setup_repository.dart' show isValidGstin;
 
+/// The `outlet.name` column's own limit. Checked here so an over-long name is
+/// refused with a sentence rather than a constraint error from drift.
+const int kOutletNameMaxLength = 120;
+
 /// Thrown when the details cannot be saved. Carries something the owner can
 /// act on, because it is shown to them as it is.
 class OutletError implements Exception {
@@ -79,6 +83,19 @@ class BillDetails {
       );
 }
 
+/// What the Restaurant card edits: the three lines at the top of every bill.
+class OutletIdentity {
+  const OutletIdentity({
+    required this.name,
+    required this.address,
+    required this.phone,
+  });
+
+  final String name;
+  final String address;
+  final String phone;
+}
+
 class OutletRepository {
   OutletRepository(
     this._db, {
@@ -101,6 +118,122 @@ class OutletRepository {
       taxMode: outlet.taxMode,
       gstin: outlet.gstin,
     );
+  }
+
+  /// The name, address and phone as they stand.
+  Future<OutletIdentity?> currentIdentity() async {
+    final outlet = await _db.select(_db.outlets).getSingleOrNull();
+    if (outlet == null) return null;
+    return OutletIdentity(
+      name: outlet.name,
+      address: outlet.address,
+      phone: outlet.phone,
+    );
+  }
+
+  Stream<OutletIdentity?> watchIdentity() =>
+      _db.select(_db.outlets).watchSingleOrNull().map((outlet) {
+        if (outlet == null) return null;
+        return OutletIdentity(
+          name: outlet.name,
+          address: outlet.address,
+          phone: outlet.phone,
+        );
+      });
+
+  /// Problems with [d], in the owner's words. Empty when it can be saved.
+  List<String> validateIdentity(OutletIdentity d) {
+    final problems = <String>[];
+
+    if (d.name.trim().isEmpty) {
+      problems.add('The restaurant needs a name.');
+    } else if (d.name.trim().length > kOutletNameMaxLength) {
+      // The column is capped at 120. Without this the save would fail deep
+      // inside drift with a constraint error rather than saying what is
+      // wrong, and first-run setup has the same gap.
+      problems.add('The name is too long: at most '
+          '$kOutletNameMaxLength characters.');
+    }
+    if (d.address.trim().isEmpty) {
+      problems.add('The address is printed on every bill, so it is required.');
+    }
+    if (d.phone.trim().isEmpty) {
+      problems.add('A phone number is printed on every bill.');
+    }
+
+    return problems;
+  }
+
+  /// Saves the name, address and phone. Owner only.
+  ///
+  /// Returns true when something actually changed. Separate from
+  /// [updateBillDetails] because they are separate cards on the screen and
+  /// separate kinds of change: this one alters no tax treatment and needs no
+  /// dated history, only an audit entry.
+  Future<bool> updateIdentity(
+    OutletIdentity d, {
+    required String byUserId,
+    DateTime? at,
+  }) async {
+    final problems = validateIdentity(d);
+    if (problems.isNotEmpty) throw OutletError(problems.join(' '));
+
+    final now = at ?? clock();
+
+    return _db.transaction(() async {
+      final by = await (_db.select(_db.users)
+            ..where((u) => u.id.equals(byUserId)))
+          .getSingleOrNull();
+      if (by == null || !Permission.changeSettings.allows(by.role)) {
+        throw OutletError('Only the owner can change the restaurant details.');
+      }
+
+      final outlet = await _db.select(_db.outlets).getSingleOrNull();
+      if (outlet == null) {
+        throw OutletError('Finish first-run setup first.');
+      }
+
+      final name = d.name.trim();
+      final address = d.address.trim();
+      final phone = d.phone.trim();
+
+      if (outlet.name == name &&
+          outlet.address == address &&
+          outlet.phone == phone) {
+        return false;
+      }
+
+      final before = <String, Object?>{
+        'name': outlet.name,
+        'address': outlet.address,
+        'phone': outlet.phone,
+      };
+
+      await (_db.update(_db.outlets)..where((o) => o.id.equals(outlet.id)))
+          .write(OutletsCompanion(
+        name: Value(name),
+        address: Value(address),
+        phone: Value(phone),
+      ));
+
+      await _db.into(_db.auditLog).insert(AuditLogCompanion.insert(
+            id: uuid.v7(),
+            at: now,
+            userId: Value(byUserId),
+            deviceId: await _deviceId(),
+            action: AuditAction.settingChanged,
+            entity: AuditEntity.outlet,
+            entityId: outlet.id,
+            before: Value(jsonEncode(before)),
+            after: Value(jsonEncode({
+              'name': name,
+              'address': address,
+              'phone': phone,
+            })),
+          ));
+
+      return true;
+    });
   }
 
   /// A stream, so the settings screen and anything else reading the outlet

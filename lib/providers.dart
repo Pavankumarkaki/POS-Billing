@@ -349,3 +349,8 @@ final outletRepositoryProvider = Provider<OutletRepository>(
 final billDetailsProvider = StreamProvider<BillDetails?>(
   (ref) => ref.watch(outletRepositoryProvider).watch(),
 );
+
+/// What the Restaurant card shows: the three lines atop every bill.
+final outletIdentityProvider = StreamProvider<OutletIdentity?>(
+  (ref) => ref.watch(outletRepositoryProvider).watchIdentity(),
+);

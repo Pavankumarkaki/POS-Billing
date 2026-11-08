@@ -31,7 +31,7 @@ part 'db.g.dart';
 /// Bumped for every schema change, with a migration step to match. Migration
 /// tests walk every version from 1 to here, so this number and the `onUpgrade`
 /// below cannot drift apart unnoticed.
-const int kSchemaVersion = 2;
+const int kSchemaVersion = 3;
 
 /// The file the database lives in, inside the app's own documents directory.
 const String kDatabaseFileName = 'pos.sqlite';
@@ -78,10 +78,59 @@ class PosDatabase extends _$PosDatabase {
                 // first bill of a new financial year because the sequence
                 // restarts each April. Widened to include fy.
                 //
-                // SQLite cannot alter a constraint, so the table is recreated
-                // and the rows copied. TableMigration with no column changes
-                // does exactly that, keeping every existing bill.
-                await m.alterTable(TableMigration(bills));
+                // SQLite cannot alter a constraint, so the table is
+                // recreated and the rows copied.
+                //
+                // `newColumns` is not optional here, and it is the part that
+                // will catch out whoever adds schema v4. TableMigration
+                // builds the new table from the table's CURRENT definition
+                // and then copies every one of its columns across from the
+                // old one. Any column added in a LATER version does not
+                // exist in a v1 database, so it has to be declared as new or
+                // the copy fails with "no such column". Add a column to
+                // `bill` in v4 and it belongs in this list too.
+                await m.alterTable(TableMigration(
+                  bills,
+                  newColumns: [
+                    bills.outletName,
+                    bills.outletAddress,
+                    bills.outletPhone,
+                    bills.outletFssaiNo,
+                    bills.outletGstin,
+                    bills.outletSacCode,
+                  ],
+                ));
+              case 2:
+                // The outlet header, snapshotted onto each bill. See the note
+                // on those columns in tables.dart: once Settings could change
+                // the tax type, the FSSAI number and the GSTIN, rebuilding a
+                // reprint's header from the outlet row started producing
+                // documents that were wrong.
+                //
+                // Added nullable and NOT backfilled. Backfilling would stamp
+                // today's details onto bills issued under different ones,
+                // which is the very thing being fixed. Null means "not
+                // recorded", and the print path falls back to the outlet row,
+                // which is exactly what those bills did before.
+                // Only the ones that are missing. A database coming from v1
+                // has already been through case 1, which recreates `bill`
+                // with TableMigration, and TableMigration builds the table
+                // from its CURRENT definition: the v3 columns are there
+                // before this step runs. Adding them again fails, and that
+                // path is how an upgrade from the very first build arrives.
+                final existing = await _columnsOf('bill');
+                for (final column in [
+                  bills.outletName,
+                  bills.outletAddress,
+                  bills.outletPhone,
+                  bills.outletFssaiNo,
+                  bills.outletGstin,
+                  bills.outletSacCode,
+                ]) {
+                  if (!existing.contains(column.name)) {
+                    await m.addColumn(bills, column);
+                  }
+                }
               default:
                 // A schemaVersion raised without a matching step fails loudly
                 // rather than leaving a database half a version behind.
@@ -111,6 +160,12 @@ class PosDatabase extends _$PosDatabase {
           }
         },
       );
+
+  /// The column names a table actually has right now.
+  Future<Set<String>> _columnsOf(String table) async {
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return {for (final r in rows) r.read<String>('name')};
+  }
 
   /// Indexes for the queries the app actually runs: the bills list for a day,
   /// reports over a date range, the item grid, and the audit trail for a bill.

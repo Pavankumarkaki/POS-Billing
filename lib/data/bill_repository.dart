@@ -215,6 +215,16 @@ class BillRepository {
             total: computed.total,
             createdBy: userId,
             compositionTurnover: Value(computed.compositionTurnover),
+            // The outlet header, as this bill prints it. Snapshotted for the
+            // same reason the lines are: these can be changed in Settings
+            // now, and a reprint has to reproduce the document that was
+            // issued rather than redescribe it with today's details.
+            outletName: Value(outlet.name),
+            outletAddress: Value(outlet.address),
+            outletPhone: Value(outlet.phone),
+            outletFssaiNo: Value(outlet.fssaiNo),
+            outletGstin: Value(outlet.gstin),
+            outletSacCode: Value(outlet.sacCode),
           ));
       failAt?.call(SaleStage.afterBillInsert);
 

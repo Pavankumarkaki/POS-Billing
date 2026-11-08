@@ -228,6 +228,30 @@ class Bills extends Table {
   IntColumn get compositionTurnover =>
       integer().map(const PaiseConverter()).withDefault(const Constant(0))();
 
+  /// The outlet header as it was printed on this bill.
+  ///
+  /// Added in schema v3, when Settings gained the ability to change the tax
+  /// type, the FSSAI number and the GSTIN. Before that these could only be set
+  /// at first-run setup, so rebuilding a reprint's header from the outlet row
+  /// gave the right answer by accident. Once they can change it does not: an
+  /// old tax invoice reprinted after the outlet went unregistered came out
+  /// with no GSTIN on it, which is not a valid tax invoice, and an FSSAI
+  /// correction stamped the new number onto every past bill.
+  ///
+  /// This is the same rule the bill LINES already follow, applied to the
+  /// header: a document reproduces what it said when it was issued.
+  ///
+  /// Nullable because bills written before v3 have no snapshot. The print path
+  /// falls back to the outlet row for those, which is the best available
+  /// answer rather than a guess dressed up as a record. Every bill written
+  /// since v3 has them.
+  TextColumn get outletName => text().nullable()();
+  TextColumn get outletAddress => text().nullable()();
+  TextColumn get outletPhone => text().nullable()();
+  TextColumn get outletFssaiNo => text().nullable()();
+  TextColumn get outletGstin => text().nullable()();
+  TextColumn get outletSacCode => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

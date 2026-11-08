@@ -446,8 +446,26 @@ print one purely from whether one is stored, and an unregistered outlet
 printing a GSTIN would be wrong. Composition keeps it: a composition dealer is
 registered and their bill of supply carries it.
 
-Still set-once: the outlet name, address and phone. They print on every bill
-too, so changing premises currently needs a developer. Worth doing next.
+The name, address and phone are editable too, in the Restaurant card above
+it. No confirmation there: correcting a phone number changes nothing about
+what a bill *is*.
+
+**Every bill snapshots its own header**, added in schema v3 when these became
+editable. Before that, a reprint rebuilt the outlet header from the outlet
+row, which was right only because the fields could not change. Once they
+could, it was wrong in two ways that a test now pins:
+
+* an old tax invoice reprinted after the outlet went unregistered came out
+  with **no GSTIN on it**, which is not a valid tax invoice;
+* an FSSAI correction stamped the new number onto every past bill.
+
+So `bill` now carries the name, address, phone, FSSAI, GSTIN and SAC it was
+printed with, and the print path reads those. Bills written before v3 have
+none and fall back to the outlet row, which is exactly what they did before;
+they are not backfilled, because stamping today's details onto them is the
+bug being fixed. The footer and the UPI code stay live on purpose: the footer
+is a message rather than part of the document, and the QR should route money
+to the account the restaurant uses now.
 
 ## The documents
 
@@ -466,7 +484,7 @@ tested. Checked against the code on 2026-11-04, not from memory.
 | --- | --- | --- | --- |
 | 1 | A paid bill is immutable: no amount or line is ever updated, no bill is ever deleted | `data/bill_repository.dart` — the only `update` on `bill` is the cancel, and it writes status, reason and user only. There is no `delete` on `bill` anywhere | `test/data/immutability_test.dart` |
 | 2 | Cancelling keeps the invoice number and records status, reason and user | `bill_repository.dart` `cancelBill` | `test/data/immutability_test.dart`, `test/widget/bills_screen_test.dart` |
-| 3 | Every line stores a snapshot of name, price and tax rate | `data/tables.dart` `BillLines` | `test/data/immutability_test.dart`, group "snapshots survive menu edits": a rename, a price change, a tax-class change, a disable and an outlet tax-mode change all leave a past bill untouched |
+| 3 | Every line stores a snapshot of name, price and tax rate, and every bill stores the outlet header it was printed with | `data/tables.dart`, `BillLines` for the lines and the `outlet*` columns on `Bills` for the header | `test/data/immutability_test.dart`, group "snapshots survive menu edits", and `test/printing/reprint_header_test.dart`, which reprints a bill after the outlet changes its tax type and licence numbers |
 | 4 | Money is integer paise | `core/money.dart` `Paise`. The one exception is deliberate and at the boundary: `data/export_service.dart` converts to a real number so a spreadsheet column can be summed. Nothing reads it back | `test/core/money_test.dart`, `test/data/export_test.dart` |
 | 5 | Bill, lines, payments, audit entry, outbox entry and sequence increment commit in one transaction | `bill_repository.dart` `commitSale` | `test/data/sale_transaction_test.dart` — a failure injected at each of the six writes leaves nothing behind |
 | 6 | The bill is saved before printing; a printer failure never loses a bill, changes its number or blocks the next sale | `features/billing/payment_sheet.dart` — printing takes a bill id, which exists only after the commit | `test/widget/billing_screen_test.dart` (Next bill is enabled after a print failure) |

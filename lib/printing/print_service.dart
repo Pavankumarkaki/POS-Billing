@@ -209,20 +209,39 @@ class PrintService {
       total: bill.total,
       compositionTurnover: bill.compositionTurnover,
       showsTax: bill.cgst.isPositive || bill.sgst.isPositive,
-      sacCode: outlet.sacCode,
+      sacCode: bill.outletSacCode ?? outlet.sacCode,
     );
 
     return buildReceipt(
+      // The header comes from the BILL where the bill recorded it, and only
+      // falls back to the outlet row for bills written before schema v3,
+      // which have no snapshot. Rebuilding it from the outlet row was right
+      // while these could only be set at setup; once Settings could change
+      // them it printed old bills with today's details, and an old tax
+      // invoice reprinted after the outlet went unregistered lost its GSTIN.
+      //
+      // billFooter and upiVpa deliberately stay live. The footer is a message
+      // to the customer rather than part of the document, and the UPI code
+      // should route money to the account the restaurant uses today, not the
+      // one it used when the bill was first printed.
       outlet: ReceiptOutlet(
-        name: outlet.name,
-        address: outlet.address,
-        phone: outlet.phone,
-        fssaiNo: outlet.fssaiNo,
+        name: bill.outletName ?? outlet.name,
+        address: bill.outletAddress ?? outlet.address,
+        phone: bill.outletPhone ?? outlet.phone,
+        fssaiNo: bill.outletFssaiNo ?? outlet.fssaiNo,
+        // Not snapshotted as a field of its own: the bill's docType and its
+        // stored tax splits already say what tax treatment it had, and that
+        // is what the receipt renders from.
         taxMode: outlet.taxMode,
-        gstin: outlet.gstin,
+        // A null GSTIN means two different things: "this outlet had none"
+        // and "this bill predates the snapshot". outletName tells them apart,
+        // because every bill written since v3 has one and no bill before v3
+        // does. Without this an unregistered outlet's old bills would print
+        // today's GSTIN.
+        gstin: bill.outletName == null ? outlet.gstin : bill.outletGstin,
         billFooter: outlet.billFooter,
         upiVpa: outlet.upiVpa,
-        sacCode: outlet.sacCode,
+        sacCode: bill.outletSacCode ?? outlet.sacCode,
       ),
       bill: computed,
       invoiceNo: invoiceNo,

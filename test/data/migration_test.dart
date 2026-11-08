@@ -62,6 +62,25 @@ Future<PosDatabase> openV1() async {
   return db;
 }
 
+/// Builds a v2 database: the current schema minus the v3 snapshot columns.
+Future<PosDatabase> openV2() async {
+  final db = PosDatabase(NativeDatabase.memory());
+  await db.customStatement('SELECT 1');
+
+  for (final column in const [
+    'outlet_name',
+    'outlet_address',
+    'outlet_phone',
+    'outlet_fssai_no',
+    'outlet_gstin',
+    'outlet_sac_code',
+  ]) {
+    await db.customStatement('ALTER TABLE bill DROP COLUMN $column');
+  }
+  await db.customStatement('PRAGMA user_version = 2');
+  return db;
+}
+
 void main() {
   group('the v1 to v2 migration', () {
     test('a v1 database really does reject the new year', () async {
@@ -177,13 +196,71 @@ void main() {
     });
   });
 
+  group('the v2 to v3 migration', () {
+    test('adds the header columns and keeps every bill', () async {
+      final db = await openV2();
+      addTearDown(db.close);
+      await _seed(db);
+      await _insertBill(db, fy: 2026, seq: 1, no: 'A/2627/000001');
+      await _insertBill(db, fy: 2026, seq: 2, no: 'A/2627/000002');
+
+      await _migrateFrom(db, 2);
+
+      final bills = await (db.select(db.bills)
+            ..orderBy([(b) => OrderingTerm.asc(b.deviceSeq)]))
+          .get();
+      expect(bills, hasLength(2));
+      expect(bills.map((b) => b.invoiceNo),
+          ['A/2627/000001', 'A/2627/000002']);
+      expect(bills.every((b) => b.total.value == 25200), isTrue);
+    });
+
+    test('bills from before it have no snapshot, rather than a wrong one',
+        () async {
+      // Backfilling would stamp today's outlet details onto bills issued
+      // under different ones, which is the bug the snapshot exists to fix.
+      final db = await openV2();
+      addTearDown(db.close);
+      await _seed(db);
+      await _insertBill(db, fy: 2026, seq: 1, no: 'A/2627/000001');
+
+      await _migrateFrom(db, 2);
+
+      final bill = await db.select(db.bills).getSingle();
+      expect(bill.outletName, isNull);
+      expect(bill.outletFssaiNo, isNull);
+      expect(bill.outletGstin, isNull);
+    });
+
+    test('a bill written after it carries the header', () async {
+      final db = await openV2();
+      addTearDown(db.close);
+      await _seed(db);
+      await _migrateFrom(db, 2);
+
+      await _insertBill(db, fy: 2026, seq: 1, no: 'A/2627/000001');
+      // _insertBill does not set them, so this only proves the columns
+      // accept values; commitSale filling them is covered in
+      // test/printing/reprint_header_test.dart.
+      await (db.update(db.bills)..where((b) => b.deviceSeq.equals(1)))
+          .write(const BillsCompanion(
+        outletName: Value('Annapurna Mess'),
+        outletFssaiNo: Value('12345678901234'),
+      ));
+
+      final bill = await db.select(db.bills).getSingle();
+      expect(bill.outletName, 'Annapurna Mess');
+      expect(bill.outletFssaiNo, '12345678901234');
+    });
+  });
+
   group('schema version', () {
     test('a fresh database is at the current version', () async {
       final db = PosDatabase.memory();
       addTearDown(db.close);
       final row = await db.customSelect('PRAGMA user_version').getSingle();
       expect(row.read<int>('user_version'), kSchemaVersion);
-      expect(kSchemaVersion, 2);
+      expect(kSchemaVersion, 3);
     });
 
     test('every version from 1 to the current one has a step', () async {
@@ -198,10 +275,13 @@ void main() {
   });
 }
 
-/// Runs the real onUpgrade path.
-Future<void> _migrate(PosDatabase db) async {
+/// Runs the real onUpgrade path from v1.
+Future<void> _migrate(PosDatabase db) => _migrateFrom(db, 1);
+
+/// Runs the real onUpgrade path from [from] to the current version.
+Future<void> _migrateFrom(PosDatabase db, int from) async {
   final migrator = db.createMigrator();
-  await db.migration.onUpgrade(migrator, 1, kSchemaVersion);
+  await db.migration.onUpgrade(migrator, from, kSchemaVersion);
   await db.customStatement('PRAGMA user_version = $kSchemaVersion');
 }
 
