@@ -45,14 +45,20 @@ import 'harness.dart';
 /// `pump` rather than `pumpAndSettle` throughout, because a spinner is an
 /// animation that never stops and `pumpAndSettle` would wait for ever.
 Future<void> settleRealIo(WidgetTester tester) async {
-  for (var i = 0; i < 200; i++) {
+  // 30 seconds of real time, which the loop only spends if something is
+  // genuinely wrong: it returns as soon as the screen reports. Raised from 5
+  // seconds while chasing a hang that turned out not to be slowness at all,
+  // but `outletProvider` briefly being a StreamProvider, whose `.future`
+  // never completes without a live subscriber. The ceiling stays generous
+  // because a timeout here should mean a deadlock, not a slow machine.
+  for (var i = 0; i < 1200; i++) {
     if (find.byKey(const Key('outcome')).evaluate().isNotEmpty) return;
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 25)),
     );
     await tester.pump();
   }
-  fail('the export never reported an outcome');
+  fail('the export never reported an outcome within 30 seconds');
 }
 
 void main() {

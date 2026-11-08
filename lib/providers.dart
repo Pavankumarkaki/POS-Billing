@@ -26,6 +26,7 @@ import 'data/bill_repository.dart';
 import 'data/db.dart';
 import 'data/export_service.dart';
 import 'data/menu_repository.dart';
+import 'data/outlet_repository.dart';
 import 'data/settings_repository.dart';
 import 'data/setup_repository.dart';
 import 'printing/bluetooth_printer.dart';
@@ -62,12 +63,40 @@ final deviceProvider = FutureProvider<DeviceRow?>(
       ).getSingleOrNull(),
 );
 
-/// The outlet. Null before setup.
-final outletProvider = FutureProvider<OutletRow?>(
+/// Emits whenever the outlet row changes. Not read for its value.
+///
+/// Exists so [outletProvider] can stay a FutureProvider while still being
+/// live. See the note there for why it cannot simply be a stream itself.
+final _outletChanges = StreamProvider<void>(
   (ref) => ref.watch(databaseProvider).select(
         ref.watch(databaseProvider).outlets,
-      ).getSingleOrNull(),
+      ).watchSingleOrNull(),
 );
+
+/// The outlet. Null before setup.
+///
+/// A FutureProvider that re-runs when the outlet row changes, rather than a
+/// StreamProvider. Both halves of that are deliberate:
+///
+///   * **It has to re-run.** Settings can now change the tax mode, the FSSAI
+///     number and the GSTIN, and the screens that read them are not the screen
+///     that writes them. A plain cached future left the billing screen
+///     computing bills on the old tax mode until the app was restarted, which
+///     is the same bug that once hid a saved bill from the Bills tab.
+///   * **It cannot be a StreamProvider.** Several callers do
+///     `await ref.watch(outletProvider.future)`, and a StreamProvider's
+///     `.future` only completes once something is subscribed to the stream.
+///     Read from a one-shot callback, as the export does through
+///     `todayProvider`, it never completes and the caller hangs for ever.
+///     Making this a stream deadlocked the whole export path, deterministically
+///     and silently.
+final outletProvider = FutureProvider<OutletRow?>((ref) async {
+  // Watched for the dependency, not the value: an emission re-runs this.
+  ref.watch(_outletChanges);
+  return ref.watch(databaseProvider).select(
+        ref.watch(databaseProvider).outlets,
+      ).getSingleOrNull();
+});
 
 /// Auth needs the device id, for the audit log.
 ///
@@ -306,3 +335,17 @@ final backupStatusProvider = StreamProvider<BackupStatus>((ref) async* {
     );
   }
 });
+
+
+// ---------------------------------------------------------------------------
+// Outlet details, editable after setup.
+// ---------------------------------------------------------------------------
+
+final outletRepositoryProvider = Provider<OutletRepository>(
+  (ref) => OutletRepository(ref.watch(databaseProvider)),
+);
+
+/// What the Bill details card shows. Null before setup.
+final billDetailsProvider = StreamProvider<BillDetails?>(
+  (ref) => ref.watch(outletRepositoryProvider).watch(),
+);
