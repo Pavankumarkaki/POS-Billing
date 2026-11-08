@@ -315,6 +315,27 @@ The case that matters if the phone is lost or wiped.
 - [ ] Sign in with the **old** PIN, not the one typed during setup: the restore
       brings the old users back with it.
 
+### 10d2. Changing the bill details, and what a reprint shows
+
+Settings → Restaurant, and Settings → Bill details. Owner only.
+
+- [ ] Correct the FSSAI number by a digit and save. It should say Saved.
+- [ ] Try saving a 10-digit one. It must be refused in words, and the stored
+      number must still be there afterwards.
+- [ ] Change the tax type. It should ask first, say what future bills become,
+      and say that bills already issued do not change.
+- [ ] Take a bill. Check the tax on it matches the new type **without
+      restarting the app**.
+- [ ] Rename the restaurant, then **reprint an older bill** from the Bills
+      tab. The paper should carry the name, address, FSSAI and GSTIN the bill
+      was **originally printed with**, not the new ones. This is the one worth
+      doing on paper rather than trusting: it is the thing that was wrong
+      before, and a reprint that quietly restates today's details is how an
+      invalid tax invoice reaches a customer.
+- [ ] A bill taken **before this version was installed** has no stored header
+      and will reprint with the current details. Expected, and the reason to
+      do any renaming before a backlog of bills builds up.
+
 ### 10e. The accountant's copy
 
 - [ ] On the backup screen, pick **This month** and tap **Excel**. Note where
