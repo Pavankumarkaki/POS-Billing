@@ -119,6 +119,19 @@ class AuthRepository {
         ..orderBy([(u) => OrderingTerm.asc(u.name)]))
       .get();
 
+  /// Everyone for the staff screen, deactivated users included, active first.
+  ///
+  /// A stream rather than a future because the screen that lists staff is the
+  /// screen that adds and deactivates them. A cached future left a saved bill
+  /// invisible in the Bills tab until a restart once already, and this is the
+  /// same shape of mistake.
+  Stream<List<UserRow>> watchStaff() => (_db.select(_db.users)
+        ..orderBy([
+          (u) => OrderingTerm.desc(u.isActive),
+          (u) => OrderingTerm.asc(u.name),
+        ]))
+      .watch();
+
   /// Attempts a sign-in.
   ///
   /// The whole thing is one transaction, so the lockout counter cannot be lost
@@ -258,6 +271,74 @@ class AuthRepository {
         userId: userId,
         at: now,
         after: {'changed_for': userId},
+      );
+    });
+  }
+
+  /// Resets a PIN without knowing the old one. Owner only.
+  ///
+  /// The recovery path [changePin] cannot be: it requires the PIN that has
+  /// been forgotten, and [clearLockout] only clears the lockout, leaving the
+  /// staff member still guessing. Without this the only way back was a
+  /// reinstall, which costs every bill on the device.
+  ///
+  /// Resetting someone else's PIN is deliberately not the same as changing
+  /// your own, and this method refuses to touch the caller's own PIN. Allowing
+  /// that would undo the guarantee [changePin] exists for: a till left
+  /// unlocked on the counter could be used to set a new owner PIN and lock the
+  /// owner out of their own reports. An owner changes their own PIN by knowing
+  /// it, or another owner resets it for them, which is one of the reasons
+  /// there must always be an active owner.
+  ///
+  /// A sole owner who forgets their own PIN still has no way in. That is the
+  /// deliberate consequence of having no backdoor PIN, not an oversight.
+  Future<void> resetPin({
+    required String userId,
+    required String newPin,
+    required String byUserId,
+    DateTime? at,
+  }) async {
+    final now = at ?? _clock();
+
+    final reason = pinRejectionReason(newPin);
+    if (reason != null) throw PinError(reason);
+
+    await _db.transaction(() async {
+      final by = await (_db.select(_db.users)
+            ..where((u) => u.id.equals(byUserId)))
+          .getSingleOrNull();
+      if (by == null || !Permission.manageUsers.allows(by.role)) {
+        throw PinError('Only the owner can reset a PIN.');
+      }
+      if (userId == byUserId) {
+        throw PinError(
+          'Change your own PIN with your current one, rather than '
+          'resetting it.',
+        );
+      }
+
+      final target = await (_db.select(_db.users)
+            ..where((u) => u.id.equals(userId)))
+          .getSingleOrNull();
+      if (target == null) throw PinError('No such user.');
+
+      // The lockout goes with it. Someone who has forgotten a PIN has usually
+      // locked themselves out trying to remember it, and leaving the lockout
+      // in place would mean the new PIN did not work either.
+      await (_db.update(_db.users)..where((u) => u.id.equals(userId)))
+          .write(UsersCompanion(
+        pinHash: Value(hashPin(newPin)),
+        failedAttempts: const Value(0),
+        lockedUntil: const Value(null),
+      ));
+
+      // Who did it, and for whom. Never the PIN and never the hash.
+      await _audit(
+        action: AuditAction.pinChanged,
+        userId: byUserId,
+        at: now,
+        entityId: userId,
+        after: {'reset_for': userId},
       );
     });
   }

@@ -336,6 +336,41 @@ Settings → Restaurant, and Settings → Bill details. Owner only.
       and will reprint with the current details. Expected, and the reason to
       do any renaming before a backlog of bills builds up.
 
+### 10f. Staff, and the way back from a forgotten PIN
+
+Settings → **Open staff**. Owner only. None of this has been run on a real
+phone, only on an emulator and in tests.
+
+- [ ] Add a cashier with their own name and PIN. They should appear in the
+      list straight away, without restarting the app.
+- [ ] Lock the app, then sign in as that cashier. Ring up a bill.
+- [ ] Open the bill in the Bills tab and check it records **the cashier's**
+      name, not the owner's. This is the whole point of giving them a PIN.
+- [ ] As the cashier, open **Settings**. They should see only **Your PIN**,
+      with a line saying the rest is the owner's. No printer, no bill
+      details, no staff, no backup.
+- [ ] As the cashier, **Change my PIN**. Lock, and sign in with the new one.
+      The old one must be refused.
+- [ ] As the cashier, confirm there is **no Reports tab** and no Menu tab.
+- [ ] Get the cashier to forget their PIN: type a wrong one five times until
+      it says they are locked out.
+- [ ] As the owner, Settings → Staff → **Reset PIN** for them. It asks for
+      **your** PIN first. Try a wrong one: it must refuse and change nothing.
+- [ ] Then the right one. The cashier should be able to sign in with the new
+      PIN **immediately**, with no wait left over from the lockout.
+- [ ] **Remove** the cashier. They should disappear from the sign-in screen
+      and move to "No longer working here".
+- [ ] Open an old bill of theirs. It must still show their name.
+- [ ] **Bring back** the same cashier. They should sign in with the PIN they
+      had before being removed.
+- [ ] Check the owner's own row has no Remove and no Reset PIN on it, and
+      that a sole owner cannot remove themselves.
+
+Worth knowing before you start: a **sole owner who forgets their own PIN has
+no way in**. That is deliberate, because there is no backdoor PIN, but it
+means the restaurant should have a second owner account before this is the
+only device holding the bills. Adding one is in the same screen.
+
 ### 10e. The accountant's copy
 
 - [ ] On the backup screen, pick **This month** and tap **Excel**. Note where

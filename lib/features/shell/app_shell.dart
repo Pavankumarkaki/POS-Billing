@@ -23,7 +23,9 @@ enum Destination {
   bills('Bills', Icons.list_alt_outlined, null),
   menu('Menu', Icons.restaurant_menu_outlined, Permission.editMenu),
   reports('Reports', Icons.bar_chart_outlined, Permission.viewReports),
-  settings('Settings', Icons.tune_outlined, Permission.changeSettings);
+  // Everyone, but not for the same reasons: staff reach Settings only to
+  // change their own PIN, and the screen itself shows them nothing else.
+  settings('Settings', Icons.tune_outlined, null);
 
   const Destination(this.label, this.icon, this.permission);
 

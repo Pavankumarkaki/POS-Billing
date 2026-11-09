@@ -346,6 +346,51 @@ class SetupRepository {
     });
   }
 
+  /// Brings a deactivated user back. Owner only.
+  ///
+  /// The counterpart to [deactivateUser], for the same reason the menu can
+  /// enable a disabled item: deactivating the wrong person by mistake should
+  /// not be a one-way door whose only exit is a second account with the same
+  /// name.
+  Future<void> reactivateUser({
+    required String userId,
+    required String byUserId,
+    DateTime? at,
+  }) async {
+    final now = at ?? _clock();
+
+    await _db.transaction(() async {
+      final by = await (_db.select(_db.users)
+            ..where((u) => u.id.equals(byUserId)))
+          .getSingleOrNull();
+      if (by == null || !Permission.manageUsers.allows(by.role)) {
+        throw SetupError('Only the owner can bring a user back.');
+      }
+
+      final target = await (_db.select(_db.users)
+            ..where((u) => u.id.equals(userId)))
+          .getSingleOrNull();
+      if (target == null) throw SetupError('No such user.');
+
+      // Their PIN is whatever it was. Nothing here touches it, so coming back
+      // does not quietly hand out a known PIN.
+      await (_db.update(_db.users)..where((u) => u.id.equals(userId)))
+          .write(const UsersCompanion(isActive: Value(true)));
+
+      await _db.into(_db.auditLog).insert(AuditLogCompanion.insert(
+            id: _uuid.v7(),
+            at: now,
+            userId: Value(byUserId),
+            deviceId: await _deviceId(),
+            action: AuditAction.userEdited,
+            entity: AuditEntity.user,
+            entityId: userId,
+            before: Value(jsonEncode({'is_active': false})),
+            after: Value(jsonEncode({'is_active': true})),
+          ));
+    });
+  }
+
   Future<String> _deviceId() async {
     final device = await _db.select(_db.devices).getSingleOrNull();
     if (device == null) throw SetupError('This device is not set up.');

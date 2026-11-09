@@ -18,6 +18,8 @@ import '../../printing/printer.dart';
 import '../../providers.dart';
 import '../../theme/app_theme.dart';
 import 'backup_screen.dart';
+import '../auth/change_pin_dialog.dart';
+import 'staff_screen.dart';
 import 'bill_details_section.dart';
 import 'restaurant_details_section.dart';
 
@@ -98,9 +100,14 @@ class _PrinterSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
-    if (session == null || !session.can(Permission.changeSettings)) {
-      return const _OwnerOnly();
-    }
+    if (session == null) return const SizedBox.shrink();
+
+    // Staff reach Settings for exactly one thing: their own PIN. Everything
+    // else here changes what a bill IS, or who may sign in, so it stays with
+    // the owner. Showing them a card rather than a refusal matters: a cashier
+    // given a PIN by the owner has to be able to change it, or the owner
+    // knows it and the name on each bill stops meaning anything.
+    if (!session.can(Permission.changeSettings)) return const _MyPinOnly();
 
     final stored = ref.watch(printerConfigProvider);
 
@@ -236,6 +243,50 @@ class _PrinterSettingsScreenState
                   const BillDetailsSection(),
 
                   _Section(
+                    title: 'Your PIN',
+                    children: [
+                      const Text(
+                        'Changing your own PIN needs the PIN you have now.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      OutlinedButton(
+                        key: const Key('open-my-pin'),
+                        onPressed: () => showChangePinDialog(context),
+                        child: const Text('Change my PIN'),
+                      ),
+                    ],
+                  ),
+
+                  _Section(
+                    title: 'Staff',
+                    children: [
+                      const Text(
+                        'Who can sign in, and with what PIN. Each person '
+                        'needs their own, so a bill records who really rang '
+                        'it up.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      OutlinedButton(
+                        key: const Key('open-staff'),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const StaffScreen(),
+                          ),
+                        ),
+                        child: const Text('Open staff'),
+                      ),
+                    ],
+                  ),
+
+                  _Section(
                     title: 'Backup and export',
                     children: [
                       const Text(
@@ -268,22 +319,58 @@ class _PrinterSettingsScreenState
   }
 }
 
-class _OwnerOnly extends StatelessWidget {
-  const _OwnerOnly();
+/// What a cashier sees under Settings: their own PIN, and nothing else.
+class _MyPinOnly extends StatelessWidget {
+  const _MyPinOnly();
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          title: const Text('Printer'),
+          title: const Text('Settings'),
         ),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpace.xxl),
-            child: Text(
-              'Only the owner can change settings.',
-              style: TextStyle(fontSize: 17, color: AppColors.muted),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpace.lg),
+              children: [
+                _Section(
+                  title: 'Your PIN',
+                  children: [
+                    const Text(
+                      'Change the PIN you sign in with. You need the one you '
+                      'have now.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.md),
+                    Builder(
+                      builder: (context) => OutlinedButton(
+                        key: const Key('open-my-pin'),
+                        onPressed: () => showChangePinDialog(context),
+                        child: const Text('Change my PIN'),
+                      ),
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpace.sm),
+                  child: Text(
+                    'The printer, the menu, bill details and staff are the '
+                    "owner's to change.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

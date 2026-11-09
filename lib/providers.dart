@@ -200,6 +200,19 @@ final activeUsersProvider = FutureProvider<List<UserRow>>((ref) async {
   return auth.activeUsers();
 });
 
+/// Everyone on the staff screen, deactivated users included.
+///
+/// Live, so adding a cashier or bringing one back shows at once. See the note
+/// on [AuthRepository.watchStaff].
+final staffProvider = StreamProvider<List<UserRow>>((ref) async* {
+  final auth = await ref.watch(authRepositoryProvider.future);
+  if (auth == null) {
+    yield const [];
+    return;
+  }
+  yield* auth.watchStaff();
+});
+
 /// Who is signed in, or null.
 ///
 /// Memory only, on purpose: closing the app signs you out. A till left on a
