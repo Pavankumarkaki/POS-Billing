@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The adaptive icon, used from Android 8 onwards. The launcher masks these
+  two layers to whatever shape the device uses, so the mark is drawn inside
+  the central safe zone and the background is a flat colour rather than the
+  rounded square baked into the legacy PNG.
+
+  The PNGs beside this file are generated: see test/brand_icons_test.dart.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <!-- No <monochrome> layer on purpose. A themed icon is tinted flat from
+         the layer's alpha, and this foreground carries the slot as an opaque
+         green shape rather than a hole, so flattening it would merge the slot
+         into the slip and leave a blob. Without the layer Android falls back
+         to the full-colour icon, which is the better of the two. -->
+</adaptive-icon>

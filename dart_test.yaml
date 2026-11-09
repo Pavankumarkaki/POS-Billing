@@ -9,5 +9,7 @@
 # Not `--tags seed`: that selects which tags to run and does not override a
 # skip, so the file stays skipped. Checked, rather than assumed.
 tags:
+  brand:
+    skip: "an icon-rendering tool, not a test: run it with --run-skipped"
   seed:
     skip: "a device-seeding tool, not a test: run it with --run-skipped"

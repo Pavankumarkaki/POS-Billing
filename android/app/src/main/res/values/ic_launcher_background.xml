@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The deep green behind the adaptive icon. Same value as AppColors.primary
+     in lib/theme/app_theme.dart; a launcher icon cannot read Dart, so this is
+     the one place the colour is written twice. -->
+<resources>
+    <color name="ic_launcher_background">#0F4A33</color>
+</resources>
