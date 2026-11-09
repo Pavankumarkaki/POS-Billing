@@ -10,7 +10,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:restaurant_pos/core/business_date.dart';
 import 'package:restaurant_pos/data/db.dart';
+import 'package:restaurant_pos/features/bills/bills_screen.dart'
+    show todayProvider;
 import 'package:restaurant_pos/printing/print_service.dart';
 import 'package:restaurant_pos/providers.dart';
 import 'package:restaurant_pos/theme/app_theme.dart';
@@ -33,6 +36,15 @@ Future<ProviderContainer> pumpScreen(
   required Widget child,
   Size? size,
   void Function(ProviderContainer container)? before,
+
+  /// Pins the business day the screen thinks it is.
+  ///
+  /// Without this, anything that reports on "this week" or "this month"
+  /// depends on the day the suite happens to run: a week that starts on
+  /// Monday is one day long when it is Monday, so a by-day chart correctly
+  /// vanishes and an assertion that it is there fails every Monday. Tests
+  /// that care about a range pin it here and date their own bills to match.
+  BusinessDate? today,
 
   /// Replaces the print service. Typed rather than a generic override list,
   /// because `Override` lives in package:riverpod, which is not a direct
@@ -57,6 +69,8 @@ Future<ProviderContainer> pumpScreen(
     overrides: [
       databaseProvider.overrideWithValue(db),
       receiptDirectoryProvider.overrideWithValue(receipts),
+      if (today != null)
+        todayProvider.overrideWith((ref) async => today),
       if (printService != null)
         printServiceProvider.overrideWithValue(printService(db)),
     ],

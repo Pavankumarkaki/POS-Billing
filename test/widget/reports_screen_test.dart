@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:restaurant_pos/core/business_date.dart';
 import 'package:restaurant_pos/core/domain.dart';
 import 'package:restaurant_pos/core/money.dart';
 import 'package:restaurant_pos/core/tax.dart';
@@ -27,6 +28,13 @@ void main() {
   late String deviceId;
   late String biryaniId;
 
+  /// A fixed Thursday, so "this week" and "this month" both span more than
+  /// one day whatever day the suite is actually run on. A Monday leaves the
+  /// week one day long, and the 1st leaves the month one day long, and in
+  /// both cases the by-day chart correctly does not appear.
+  const pinnedDay = BusinessDate(2026, 6, 18);
+  final pinnedAt = DateTime(2026, 6, 18, 12);
+
   Future<void> seed({TaxMode mode = TaxMode.regular5}) async {
     db = PosDatabase.memory();
     final setup = SetupRepository(db);
@@ -40,7 +48,7 @@ void main() {
       ownerName: 'Ravi',
       ownerPin: '1357',
       devicePrefix: 'A',
-    ));
+    ), at: DateTime(2026, 4, 1, 10));
     ownerId = r.ownerId;
     deviceId = r.deviceId;
     staffId = await setup.addUser(
@@ -69,6 +77,7 @@ void main() {
     int qty = 1,
     PaymentMode mode = PaymentMode.cash,
     OrderType orderType = OrderType.dine,
+    DateTime? at,
   }) async {
     final computed = computeBill(
       cart: [
@@ -91,6 +100,7 @@ void main() {
       payments: [PaymentIntent(mode, computed.total)],
       deviceId: deviceId,
       userId: ownerId,
+      at: at ?? pinnedAt,
     );
   }
 
@@ -103,6 +113,7 @@ void main() {
       tester,
       db: db,
       size: size ?? const Size(1280, 800),
+      today: pinnedDay,
       child: const ReportsScreen(),
       before: (c) => c.read(sessionProvider.notifier).signIn(Session(
             userId: role == UserRole.owner ? ownerId : staffId,
@@ -252,6 +263,38 @@ void main() {
       // One day is one bar, which says nothing the Total sales tile has not.
       expect(find.text('Sales by day this week'), findsNothing);
       expect(find.text('Sales by day this month'), findsNothing);
+      expect(find.text('Total sales'), findsOneWidget);
+    });
+
+    testWidgets('a week only one day old shows no chart, which is correct',
+        (tester) async {
+      // The owner's week starts on Monday, so on a Monday "this week" is one
+      // day and there is nothing to compare. The chart is hidden by design.
+      // Worth a test of its own: it is why the test above pins a Thursday,
+      // and without it that pin looks arbitrary and gets "tidied" away.
+      const monday = BusinessDate(2026, 6, 15);
+      await sell(at: DateTime(2026, 6, 15, 12));
+      await pumpScreen(
+        tester,
+        db: db,
+        size: const Size(1280, 800),
+        today: monday,
+        child: const ReportsScreen(),
+        before: (c) => c.read(sessionProvider.notifier).signIn(Session(
+              userId: ownerId,
+              name: 'Ravi',
+              role: UserRole.owner,
+              startedAt: DateTime(2026, 6, 1),
+            )),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('period-week')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sales by day this week'), findsNothing);
+      // The sale itself is still reported, so this is a hidden chart and not
+      // an empty report.
       expect(find.text('Total sales'), findsOneWidget);
     });
   });
